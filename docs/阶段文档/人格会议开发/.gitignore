@@ -1,0 +1,29 @@
+# 环境与密钥
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node
+node_modules/
+
+# 本地工具与缓存
+.tools/
+.python/
+.uv-cache/
+.uv/
+
+# 运行数据（含用户内容，禁止提交）
+data/
+*.db
+*.sqlite3
+
+# 系统与编辑器
+.DS_Store
+.idea/
+.vscode/

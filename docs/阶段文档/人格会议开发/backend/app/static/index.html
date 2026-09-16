@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>人格会议 · 验收页</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --line:#e5e7eb; --text:#1f2328; --muted:#6b7280; --brand:#5b6cff; --warn:#b45309; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); }
+  .container { max-width:720px; margin:0 auto; padding:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:14px; }
+  h1 { font-size:20px; margin:0 0 6px; }
+  .muted { color:var(--muted); font-size:13px; }
+  .ai-badge { display:inline-block; font-size:12px; color:#9a3412; background:#fff7ed; border:1px solid #fdba74; border-radius:6px; padding:2px 8px; margin:6px 0; }
+  label { display:block; font-size:13px; margin:10px 0 4px; color:var(--muted); }
+  input, textarea, select { width:100%; padding:10px; border:1px solid var(--line); border-radius:8px; font-size:15px; font-family:inherit; }
+  textarea { min-height:70px; resize:vertical; }
+  button { background:var(--brand); color:#fff; border:0; border-radius:8px; padding:10px 16px; font-size:15px; cursor:pointer; }
+  button.secondary { background:#eef0ff; color:var(--brand); }
+  button.danger { background:#fee2e2; color:#b91c1c; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .msg { border-left:3px solid var(--line); padding:8px 12px; margin:8px 0; background:#fafafa; border-radius:0 8px 8px 0; }
+  .msg.host { border-left-color:#a78bfa; }
+  .msg.user { border-left-color:#38bdf8; }
+  .msg .who { font-weight:600; font-size:13px; }
+  .msg .tag { font-size:11px; color:var(--muted); margin-left:6px; }
+  .persona { border:1px solid var(--line); border-radius:10px; padding:10px; cursor:pointer; }
+  .persona.selected { border-color:var(--brand); background:#eef0ff; }
+  .persona .code { font-weight:700; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  @media (max-width:520px){ .grid { grid-template-columns:1fr; } }
+  .hidden { display:none; }
+  .hint { font-size:12px; color:var(--muted); }
+  .warn { color:var(--warn); }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="ai-badge">内容由 AI 生成</div>
+  <div id="view-login"></div>
+  <div id="view-home" class="hidden"></div>
+  <div id="view-question" class="hidden"></div>
+  <div id="view-select" class="hidden"></div>
+  <div id="view-meeting" class="hidden"></div>
+  <div id="view-history" class="hidden"></div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let me = null;
+let personas = [];
+let currentMeeting = null;
+let recommendRoles = null;
+
+
+async function api(path, method='GET', body){
+  const opt = {method, headers:{'Content-Type':'application/json'}};
+  if(body !== undefined) opt.body = JSON.stringify(body);
+  const resp = await fetch(path, opt);
+  let data = {};
+  try { data = await resp.json(); } catch(e){}
+  if(!resp.ok){
+    const msg = (data.error && data.error.message) || ('请求失败 ' + resp.status);
+    throw new Error(msg);
+  }
+  return data;
+}
+
+async function ssePost(path, body, onChunk, onDone, onError){
+  const resp = await fetch(path, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  if(!resp.ok){ const d = await resp.json().catch(()=>({})); onError((d.error&&d.error.message)||'请求失败'); return; }
+  const reader = resp.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  while(true){
+    const {done, value} = await reader.read();
+    if(done) break;
+    buf += dec.decode(value, {stream:true});
+    let i;
+    while((i = buf.indexOf('\n\n')) >= 0){
+      const raw = buf.slice(0, i); buf = buf.slice(i+2);
+      const line = raw.split('\n').find(l=>l.startsWith('data: '));
+      if(!line) continue;
+      const evt = JSON.parse(line.slice(6));
+      if(evt.error){ onError(evt.error.message); return; }
+      if(evt.text !== undefined){ onChunk(evt.text); }
+      else if(evt.messages !== undefined){ onDone(evt); }
+    }
+  }
+}
+
+// ---------- 登录 ----------
+function renderLogin(){
+  $('view-login').innerHTML = `
+    <h1>人格会议</h1>
+    <p class="muted">把你纠结的问题交给 3–5 个人格角色一起讨论。仅供验收测试。</p>
+    <div class="card">
+      <label>邮箱</label>
+      <input id="lg-email" placeholder="you@example.com" />
+      <div class="row" style="margin-top:10px">
+        <input id="lg-code" placeholder="验证码" style="flex:1" />
+        <button class="secondary" id="lg-send">获取验证码</button>
+      </div>
+      <div id="lg-dev" class="hint" style="margin-top:6px"></div>
+      <label style="margin-top:12px"><input type="checkbox" id="lg-age" /> 我确认已年满 18 岁</label>
+      <button id="lg-btn" style="margin-top:12px;width:100%">登录</button>
+    </div>`;
+  $('lg-send').onclick = async () => {
+    try {
+      const r = await api('/api/v1/auth/request-code','POST',{email:$('lg-email').value.trim()});
+      if(r.dev_code){ $('lg-dev').textContent = '开发验证码：' + r.dev_code; }
+      else { $('lg-dev').textContent = r.message; }
+    } catch(e){ alert(e.message); }
+  };
+  $('lg-btn').onclick = async () => {
+    try {
+      if(!$('lg-age').checked){ alert('需确认年满 18 岁'); return; }
+      const r = await api('/api/v1/auth/verify','POST',{email:$('lg-email').value.trim(), code:$('lg-code').value.trim(), age_confirmed:true});
+      me = r;
+      renderHome();
+    } catch(e){ alert(e.message); }
+  };
+}
+
+// ---------- 首页 ----------
+function renderHome(){
+  showView('home');
+  $('view-home').innerHTML = `
+    <h1>人格会议</h1>
+    <div class="muted">你好，${me.email}</div>
+    <div class="card">
+      <button style="width:100%" id="quick">快速开始 · 说说你的问题</button>
+      <button class="secondary" style="width:100%;margin-top:8px" id="manual">自选人格</button>
+      <button class="secondary" style="width:100%;margin-top:8px" id="history">我的会议</button>
+      <button class="danger" style="width:100%;margin-top:8px" id="logout">退出登录</button>
+    </div>`;
+  $('quick').onclick = () => renderQuestion('quick');
+  $('manual').onclick = () => renderSelect();
+  $('history').onclick = () => renderHistory();
+  $('logout').onclick = async () => { await api('/api/v1/auth/logout','POST',{}); location.reload(); };
+}
+
+// ---------- 问题输入（快速开始） ----------
+function renderQuestion(mode){
+  showView('question');
+  $('view-question').innerHTML = `
+    <h1>说说你的问题</h1>
+    <div class="card">
+      <label>你的问题（必填）</label>
+      <textarea id="q" placeholder="例如：我该留在现在的岗位，还是接受另一个机会？"></textarea>
+      <label>已有的选择（选填）</label>
+      <textarea id="qc" placeholder="例如：留在现岗 / 跳槽去新公司"></textarea>
+      <label>最担心的事（选填）</label>
+      <textarea id="qf" placeholder="例如：怕新机会不稳定"></textarea>
+      <div class="row" style="margin-top:12px">
+        <button id="go" style="flex:1">推荐人格</button>
+        <button class="secondary" onclick="renderHome()">返回</button>
+      </div>
+    </div>`;
+  $('go').onclick = async () => {
+    const question = $('q').value.trim();
+    if(!question){ alert('请填写问题'); return; }
+    try {
+      recommendRoles = (await api('/api/v1/meetings/recommend','POST',{question})).roles;
+      renderRolePick({question, known_choices:$('qc').value.trim(), concerns:$('qf').value.trim(), mode:'quick'});
+    } catch(e){ alert(e.message); }
+  };
+}
+
+// ---------- 自选人格（16 角色卡） ----------
+function renderSelect(){
+  showView('select');
+  loadPersonas().then(()=>{
+    $('view-select').innerHTML = `
+      <h1>自选人格</h1>
+      <div class="muted">选择 3–5 个角色（已选 <span id="cnt">0</span> 个）</div>
+      <div class="grid" id="grid"></div>
+      <div class="card">
+        <label>你的问题（必填）</label>
+        <textarea id="q"></textarea>
+        <label>已有的选择（选填）</label><textarea id="qc"></textarea>
+        <label>最担心的事（选填）</label><textarea id="qf"></textarea>
+        <div class="row" style="margin-top:12px">
+          <button id="go" style="flex:1">开始会议</button>
+          <button class="secondary" onclick="renderHome()">返回</button>
+        </div>
+      </div>`;
+    const grid = $('grid');
+    let selected = [];
+    personas.forEach(p => {
+      const el = document.createElement('div');
+      el.className = 'persona';
+      el.innerHTML = `<div class="code">${p.type_code} ${p.name}</div><div class="hint">关注：${p.focus}<br/>擅长问：${p.good_questions}<br/>易忽略：${p.blind_spot}</div>`;
+      el.onclick = () => {
+        const i = selected.indexOf(p.type_code);
+        if(i>=0){ selected.splice(i,1); el.classList.remove('selected'); }
+        else { if(selected.length>=5){ alert('最多 5 个'); return; } selected.push(p.type_code); el.classList.add('selected'); }
+        $('cnt').textContent = selected.length;
+      };
+      grid.appendChild(el);
+    });
+    $('go').onclick = async () => {
+      const question = $('q').value.trim();
+      if(!question){ alert('请填写问题'); return; }
+      if(selected.length<3 || selected.length>5){ alert('请选择 3–5 个角色'); return; }
+      try {
+        const r = await api('/api/v1/meetings','POST',{question, known_choices:$('qc').value.trim(), concerns:$('qf').value.trim(), mode:'manual', role_types:selected});
+        currentMeeting = r;
+        await startMeeting();
+      } catch(e){ alert(e.message); }
+    };
+  });
+}
+
+function loadPersonas(){
+  return api('/api/v1/personas').then(r => { personas = r.personas; });
+}
+
+// ---------- 推荐结果 + 角色确认 ----------
+function renderRolePick(ctx){
+  showView('select');
+  $('view-select').innerHTML = `
+    <h1>推荐人格</h1>
+    <div class="muted">系统根据问题推荐了 ${recommendRoles.length} 个角色，可替换或调整到 3–5 个</div>
+    <div id="rec-list"></div>
+    <div class="card">
+      <button id="start" style="width:100%">开始会议</button>
+      <button class="secondary" style="width:100%;margin-top:8px" onclick="renderQuestion('quick')">返回改问题</button>
+    </div>`;
+  const list = $('rec-list');
+  let chosen = recommendRoles.map(r=>r.role_type);
+  recommendRoles.forEach(r => {
+    const p = personas.find(x=>x.type_code===r.role_type);
+    const el = document.createElement('div');
+    el.className = 'persona selected';
+    el.innerHTML = `<div class="code">${r.role_type} ${p?p.name:''}</div><div class="hint">${r.reason||''}</div>`;
+    el.onclick = () => {
+      const i = chosen.indexOf(r.role_type);
+      if(i>=0){ chosen.splice(i,1); el.classList.remove('selected'); }
+      else { if(chosen.length>=5){ alert('最多 5 个'); return; } chosen.push(r.role_type); el.classList.add('selected'); }
+    };
+    list.appendChild(el);
+  });
+  $('start').onclick = async () => {
+    if(chosen.length<3 || chosen.length>5){ alert('请保留 3–5 个角色'); return; }
+    try {
+      const resp = await api('/api/v1/meetings','POST',{...ctx, mode:'quick', role_types:chosen});
+      if(resp.safety_abort){ alert(resp.guidance); renderHome(); return; }
+      currentMeeting = resp;
+      await startMeeting();
+    } catch(e){ alert(e.message); }
+  };
+}
+
+// ---------- 会议室 ----------
+async function startMeeting(){
+  const r = await api(`/api/v1/meetings/${currentMeeting.id}/start`,'POST',{});
+  currentMeeting = { ...currentMeeting, opening:r.opening, clarify_question:r.clarify_question };
+  renderMeeting(r.opening, r.clarify_question, r.messages);
+}
+
+function renderMeeting(opening, clarify, messages){
+  showView('meeting');
+  const list = messages.map(m => msgHtml(m)).join('');
+  $('view-meeting').innerHTML = `
+    <h1>${escapeHtml(currentMeeting.title)}</h1>
+    <div class="muted">主持人 + ${(currentMeeting.roles||[]).map(r=>r.type_code).join('、')}</div>
+    <div class="card" id="msgs">
+      <div class="msg host"><span class="who">主持人</span><div>${escapeHtml(opening)}</div></div>
+      ${clarify ? `<div class="hint" style="margin:6px 0">主持人想问：${escapeHtml(clarify)}</div>` : ''}
+      ${list}
+    </div>
+    <div class="card">
+      <div class="row">
+        <button id="continue" class="secondary">继续讨论</button>
+        <button id="ask" class="secondary">追问角色</button>
+        <button id="name" class="secondary">点名发言</button>
+        <button id="angle" class="secondary">换个角度</button>
+      </div>
+      <label>补充情况 / 插话</label>
+      <textarea id="extra" placeholder="补充新情况、纠正主持人，或输入你想说的话"></textarea>
+      <div class="row" style="margin-top:10px">
+        <button id="addc">补充情况</button>
+        <button id="summary">生成纪要</button>
+        <button class="danger" id="finish">结束会议</button>
+      </div>
+    </div>`;
+  $('continue').onclick = () => doStep({action:'continue', text:$('extra').value.trim()});
+  $('ask').onclick = () => doStepWithRoles('ask');
+  $('name').onclick = () => doStepWithRoles('name_roles');
+  $('angle').onclick = () => doStep({action:'change_angle', text:$('extra').value.trim()});
+  $('addc').onclick = () => doStep({action:'add_condition', text:$('extra').value.trim()});
+  $('summary').onclick = async () => {
+    try { const s = await api(`/api/v1/meetings/${currentMeeting.id}/summarize`,'POST',{}); renderSummary(s); }
+    catch(e){ alert(e.message); }
+  };
+  $('finish').onclick = async () => {
+    try { const s = await api(`/api/v1/meetings/${currentMeeting.id}/finish`,'POST',{}); renderSummary(s.summary || s); }
+    catch(e){ alert(e.message); }
+  };
+}
+
+function doStepWithRoles(action){
+  const roles = (currentMeeting.roles||[]).map(r=>r.type_code);
+  const target = prompt('指定角色（' + roles.join('/') + '），多个用逗号分隔');
+  if(target===null) return;
+  const list = target.split(/[,，]/).map(s=>s.trim()).filter(Boolean);
+  doStep({action, text:$('extra').value.trim(), target_roles:list});
+}
+
+async function doStep(body){
+  const box = $('msgs');
+  const tmp = document.createElement('div');
+  tmp.className = 'msg host';
+  tmp.innerHTML = `<span class="who">生成中…</span><div id="stream"></div>`;
+  box.appendChild(tmp);
+  const streamEl = $('stream');
+  try {
+    await ssePost(`/api/v1/meetings/${currentMeeting.id}/steps`, body,
+      (text)=>{ streamEl.textContent += text; },
+      (evt)=>{
+        streamEl.textContent = '';
+        tmp.remove();
+        evt.messages.forEach(m => box.insertAdjacentHTML('beforeend', msgHtml(m)));
+        $('extra').value = '';
+        if(evt.limit_reached){ alert('本场讨论已达上限，建议先生成纪要或新建会议。'); }
+      },
+      (msg)=>{ tmp.remove(); alert(msg); }
+    );
+  } catch(e){ alert(e.message); }
+}
+
+function msgHtml(m){
+  const who = m.speaker==='host' ? '主持人' : (m.speaker==='user' ? '你' : m.speaker);
+  const cls = m.speaker==='user' ? 'user' : (m.speaker==='host' ? 'host' : '');
+  return `<div class="msg ${cls}"><span class="who">${escapeHtml(who)}</span>${m.role_type?`<span class="tag">${escapeHtml(m.role_type)}</span>`:''}<div>${escapeHtml(m.viewpoint)}</div>${m.change_condition?`<div class="hint">改变条件：${escapeHtml(m.change_condition)}</div>`:''}</div>`;
+}
+
+function renderSummary(s){
+  showView('meeting');
+  $('view-meeting').innerHTML = `
+    <h1>决策纪要</h1>
+    <div class="card">
+      <div><b>问题与条件</b><p>${escapeHtml(s.problem_and_conditions)}</p></div>
+      <div><b>主要共识</b><p>${escapeHtml(s.consensus)}</p></div>
+      <div><b>主要分歧</b><p>${escapeHtml(s.disagreements)}</p></div>
+      <div><b>仍需确认</b><p>${escapeHtml(s.unknowns)}</p></div>
+      <div><b>下一步</b><p>${escapeHtml(s.next_step)}</p></div>
+      <div><b>可能改变结论的条件</b><p>${escapeHtml(s.change_conditions)}</p></div>
+      <div class="ai-badge">内容由 AI 生成</div>
+      <div class="row">
+        <button onclick="navigator.clipboard.writeText(document.querySelector('.card').innerText)">复制纪要</button>
+        <button class="secondary" onclick="renderHistory()">我的会议</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="muted">反馈（可跳过）</div>
+      <div class="row" style="margin-top:6px">
+        <label><input type="checkbox" id="f1">讨论有趣</label>
+        <label><input type="checkbox" id="f2">有新角度</label>
+        <label><input type="checkbox" id="f3">愿意尝试下一步</label>
+        <label><input type="checkbox" id="f4">愿意再次使用</label>
+      </div>
+      <button class="secondary" id="fb" style="margin-top:8px">提交反馈</button>
+    </div>`;
+  $('fb').onclick = async () => {
+    await api(`/api/v1/meetings/${currentMeeting.id}/feedback`,'POST',{
+      interesting:$('f1').checked, new_perspective:$('f2').checked,
+      next_step_intent:$('f3').checked, reuse_intent:$('f4').checked});
+    alert('感谢反馈');
+  };
+}
+
+// ---------- 历史 ----------
+async function renderHistory(){
+  showView('history');
+  const r = await api('/api/v1/meetings');
+  $('view-history').innerHTML = `<h1>我的会议</h1><button class="secondary" onclick="renderHome()">返回首页</button><div id="list"></div>`;
+  const list = $('list');
+  r.meetings.forEach(m => {
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.innerHTML = `<div><b>${escapeHtml(m.title)}</b></div><div class="hint">${m.status_label} · ${m.created_at}</div>`;
+    const row = document.createElement('div'); row.className='row';
+    const view = document.createElement('button'); view.className='secondary'; view.textContent='查看';
+    view.onclick = async () => {
+      const d = await api(`/api/v1/meetings/${m.id}`);
+      renderDetail(d);
+    };
+    const del = document.createElement('button'); del.className='danger'; del.textContent='删除';
+    del.onclick = async () => {
+      if(!confirm('删除后不可恢复，确认删除？')) return;
+      await api(`/api/v1/meetings/${m.id}`,'DELETE');
+      renderHistory();
+    };
+    row.appendChild(view); row.appendChild(del);
+    el.appendChild(row);
+    list.appendChild(el);
+  });
+}
+
+function renderDetail(d){
+  showView('meeting');
+  const list = d.messages.map(msgHtml).join('');
+  $('view-meeting').innerHTML = `
+    <h1>${escapeHtml(d.title)}</h1>
+    <div class="muted">${d.status_label} · 角色：${(d.roles||[]).map(r=>r.type_code).join('、')}</div>
+    <div class="card">${list}</div>
+    ${d.summary ? `<div class="card"><h1>纪要</h1><p>${escapeHtml(d.summary.problem_and_conditions)}</p><p><b>共识</b>：${escapeHtml(d.summary.consensus)}</p><p><b>分歧</b>：${escapeHtml(d.summary.disagreements)}</p><p><b>未知</b>：${escapeHtml(d.summary.unknowns)}</p><p><b>下一步</b>：${escapeHtml(d.summary.next_step)}</p></div>` : ''}
+    <button class="secondary" onclick="renderHistory()">返回列表</button>`;
+}
+
+function showView(name){
+  ['login','home','question','select','meeting','history'].forEach(v => $('view-'+v).classList.add('hidden'));
+  $('view-'+name).classList.remove('hidden');
+}
+
+function escapeHtml(s){ return String(s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// 启动
+(async function init(){
+  try {
+    me = await api('/api/v1/auth/me');
+    await loadPersonas();
+    renderHome();
+  } catch(e){
+    renderLogin();
+  }
+})();
+</script>
+</body>
+</html>
