@@ -1,14 +1,13 @@
-import os
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-from dotenv import load_dotenv
+from dotenv import dotenv_values
 
 from .errors import AppError
 
-ROOT = Path(__file__).resolve().parents[2].parent
+ROOT = Path(__file__).resolve().parents[2]
 
 
 @dataclass
@@ -26,27 +25,42 @@ class Settings:
     monthly_limit: Decimal = Decimal("100")
 
     @classmethod
-    def load(cls):
-        load_dotenv(ROOT / ".env", override=False)
+    def load(cls, project_root: Path = ROOT):
         try:
+            env_path = project_root / ".env"
+            if env_path.is_symlink():
+                raise ValueError()
+            # 只解析指定项目文件；禁用 ${VAR} 插值及进程变量继承，避免多 Agent 串用 Key。
+            values = dotenv_values(env_path, interpolate=False) if env_path.exists() else {}
+
+            def value(name, default):
+                return values.get(name) or default
+
             result = cls(
-                api_key=os.getenv("DEEPSEEK_API_KEY", ""),
-                model=os.getenv("DEEPSEEK_MODEL", "deepseek-flash"),
-                timeout=float(os.getenv("MODEL_TIMEOUT_SECONDS", "30")),
-                input_price=Decimal(os.getenv("INPUT_CNY_PER_MILLION", "2")),
-                output_price=Decimal(os.getenv("OUTPUT_CNY_PER_MILLION", "8")),
-                pricing_confirmed=os.getenv("PRICING_CONFIRMED", "false").lower() == "true",
-                pricing_checked_on=os.getenv("PRICING_CHECKED_ON", ""),
+                data_dir=project_root / "data",
+                api_key=value("DEEPSEEK_API_KEY", ""),
+                model=value("DEEPSEEK_MODEL", "deepseek-flash"),
+                timeout=float(value("MODEL_TIMEOUT_SECONDS", "30")),
+                input_price=Decimal(value("INPUT_CNY_PER_MILLION", "2")),
+                output_price=Decimal(value("OUTPUT_CNY_PER_MILLION", "8")),
+                pricing_confirmed=value("PRICING_CONFIRMED", "false").lower() == "true",
+                pricing_checked_on=value("PRICING_CHECKED_ON", ""),
             )
             if not 1 <= result.timeout <= 180:
                 raise ValueError()
-            if any(not rate.is_finite() or rate <= 0 for rate in
-                   [result.input_price, result.output_price]):
+            if (
+                not result.input_price.is_finite()
+                or result.input_price < 2
+                or not result.output_price.is_finite()
+                or result.output_price < 8
+            ):
                 raise ValueError()
             if result.model != "deepseek-flash":
                 raise ValueError()
+            if any(character in result.api_key for character in "\r\n${}"):
+                raise ValueError()
             return result
-        except (ValueError, ArithmeticError):
+        except (ValueError, ArithmeticError, OSError):
             raise AppError("INVALID_CONFIG", "模型或估价配置无效，请核对 .env。", 503) from None
 
     def check_call(self):

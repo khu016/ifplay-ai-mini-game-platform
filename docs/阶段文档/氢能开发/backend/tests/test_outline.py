@@ -11,27 +11,47 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.budget import Budget
-from backend.app.config import Settings
+from backend.app.config import ROOT, Settings
 from backend.app.errors import AppError
 from backend.app.main import create_app
 from backend.app.model import DeepSeek
 from backend.app.schemas import Outline, ProjectInfo, Task
-from backend.app.service import OutlineService, parse
+from backend.app.service import OutlineService, parse, verify_info
 from backend.app.store import Store
 
 
 def outline():
-    titles = ["总论", "项目背景及必要性", "市场分析与预测", "建设方案与技术方案",
-              "环境保护与安全生产", "投资估算与资金筹措", "财务评价", "风险分析与对策", "结论与建议"]
-    return {"chapters": [{"number": i, "title": title,
-                           "subtitles": ["项目概况", "论证要点", "资料依据（待补充）"]}
-                          for i, title in enumerate(titles, 1)]}
+    titles = [
+        "总论",
+        "项目背景及必要性",
+        "市场分析与预测",
+        "建设方案与技术方案",
+        "环境保护与安全生产",
+        "投资估算与资金筹措",
+        "财务评价",
+        "风险分析与对策",
+        "结论与建议",
+    ]
+    return {
+        "chapters": [
+            {
+                "number": i,
+                "title": title,
+                "subtitles": ["项目概况", "论证要点", "资料依据（待补充）"],
+            }
+            for i, title in enumerate(titles, 1)
+        ]
+    }
 
 
 @pytest.fixture
 def settings(tmp_path):
-    return Settings(data_dir=tmp_path, api_key="test-key-not-real", pricing_confirmed=True,
-                    pricing_checked_on=date.today().isoformat())
+    return Settings(
+        data_dir=tmp_path,
+        api_key="test-key-not-real",
+        pricing_confirmed=True,
+        pricing_checked_on=date.today().isoformat(),
+    )
 
 
 class FakeModel:
@@ -44,7 +64,13 @@ class FakeModel:
         self.calls.append(stage)
         if self.fail:
             raise self.fail
-        value = ProjectInfo(project_name="测试项目").model_dump() if stage == "extract" else self.candidate
+        value = (
+            ProjectInfo(
+                technology="电解水制氢", evidence={"technology": "采用电解水制氢"}
+            ).model_dump()
+            if stage == "extract"
+            else self.candidate
+        )
         raw = json.dumps(value, ensure_ascii=False)
         yield raw[:20]
         yield raw[20:]
@@ -53,6 +79,7 @@ class FakeModel:
 def collect(service, task):
     async def execute():
         return [event async for event in service.generate(service.claim(task.id))]
+
     return asyncio.run(execute())
 
 
@@ -101,7 +128,9 @@ def test_missing_key_sse_ends_error(settings):
     settings.api_key = ""
     app = create_app(settings, lambda *_: FakeModel())
     with TestClient(app) as client:
-        task_id = client.post("/api/v1/tasks", json={"description": "测试脱敏项目资料，尚未确定具体技术路线。"}).json()["id"]
+        task_id = client.post(
+            "/api/v1/tasks", json={"description": "测试脱敏项目资料，尚未确定具体技术路线。"}
+        ).json()["id"]
         response = client.post(f"/api/v1/tasks/{task_id}/outline", json={})
         assert response.status_code == 200
         assert "event: error" in response.text
@@ -115,7 +144,9 @@ def test_api_success_export_and_validation_redaction(settings):
         response = client.post("/api/v1/tasks", json={"description": "x", "secret": "do-not-echo"})
         assert response.status_code == 422
         assert "do-not-echo" not in response.text
-        task_id = client.post("/api/v1/tasks", json={"description": "公开测试项目采用电解水制氢，规模尚未确定。"}).json()["id"]
+        task_id = client.post(
+            "/api/v1/tasks", json={"description": "公开测试项目采用电解水制氢，规模尚未确定。"}
+        ).json()["id"]
         assert "OUTLINE_NOT_READY" in client.get(f"/api/v1/tasks/{task_id}/outline.md").text
         response = client.post(f"/api/v1/tasks/{task_id}/outline", json={})
         assert "event: chunk" in response.text and "event: done" in response.text
@@ -131,7 +162,12 @@ def test_api_success_export_and_validation_redaction(settings):
 def test_local_origin_and_content_type_guard(settings):
     with TestClient(create_app(settings, lambda *_: FakeModel())) as client:
         assert client.post("/api/v1/tasks", data="{}").status_code == 415
-        assert client.post("/api/v1/tasks", json={}, headers={"origin": "https://evil.example"}).status_code == 403
+        assert (
+            client.post(
+                "/api/v1/tasks", json={}, headers={"origin": "https://evil.example"}
+            ).status_code
+            == 403
+        )
         assert client.get("/health", headers={"host": "evil.example"}).status_code == 403
 
 
@@ -257,7 +293,7 @@ def test_adapter_usage_and_stream_protocol(settings):
     budget = Budget(Store(settings.data_dir), settings)
     raw = 'data: {"choices":[{"delta":{"content":"ok"}}]}\n\n'
     raw += 'data: {"choices":[],"usage":{"prompt_tokens":20,"completion_tokens":2}}\n\n'
-    raw += 'data: [DONE]\n\n'
+    raw += "data: [DONE]\n\n"
 
     def handler(request):
         body = json.loads(request.content)
@@ -265,11 +301,121 @@ def test_adapter_usage_and_stream_protocol(settings):
         assert body["response_format"] == {"type": "json_object"}
         return httpx.Response(200, text=raw)
 
-    model = DeepSeek(settings, budget, lambda **kw: httpx.AsyncClient(
-        transport=httpx.MockTransport(handler), **kw))
+    model = DeepSeek(
+        settings,
+        budget,
+        lambda **kw: httpx.AsyncClient(transport=httpx.MockTransport(handler), **kw),
+    )
 
     async def call():
         return [chunk async for chunk in model.stream(uuid4(), "extract", [], 100)]
 
     assert asyncio.run(call()) == ["ok"]
     assert budget.view().spent_or_reserved_cny == Decimal("0.000056")
+
+
+def test_project_config_never_inherits_other_agents(tmp_path, monkeypatch):
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "other-agent-test-key")
+    monkeypatch.setenv("DEEPSEEK_MODEL", "other-agent-model")
+    assert Settings.load(tmp_path).api_key == ""
+    local = tmp_path / ".env"
+    local.write_text("DEEPSEEK_API_KEY=hydrogen-test-key\n", encoding="utf-8")
+    assert Settings.load(tmp_path).api_key == "hydrogen-test-key"
+    assert Settings.load(tmp_path).model == "deepseek-flash"
+    assert __import__("os").environ["DEEPSEEK_API_KEY"] == "other-agent-test-key"
+    local.write_text("DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}\n", encoding="utf-8")
+    with pytest.raises(AppError, match="INVALID_CONFIG"):
+        Settings.load(tmp_path)
+
+
+def test_default_config_root_is_hydrogen_project():
+    from pathlib import Path
+
+    project_root = Path(__file__).resolve().parents[2]
+    assert ROOT == project_root
+    assert Settings().data_dir == project_root / "data"
+
+
+def test_info_requires_verbatim_evidence():
+    description = "项目名称：绿氢示例。拟采用 PEM 电解水制氢，规模尚未确定。"
+    info = ProjectInfo(
+        project_name="绿氢示例",
+        technology="PEM 电解水制氢",
+        scale="100MW",
+        evidence={
+            "project_name": "项目名称：绿氢示例",
+            "technology": "采用 PEM 电解水制氢",
+            "scale": "规模100MW",
+        },
+    )
+    verified = verify_info(info, description)
+    assert verified.project_name == "绿氢示例"
+    assert verified.technology == "PEM 电解水制氢"
+    assert verified.scale is None
+    assert verified.issues
+
+
+def test_wrong_chapter_topics_rejected_and_prefix_normalized():
+    candidate = outline()
+    candidate["chapters"][0]["title"] = "第一章 总论"
+    assert parse(json.dumps(candidate), Outline).chapters[0].title == "总论"
+    candidate["chapters"][1]["title"] = "总论"
+    with pytest.raises(AppError, match="INVALID_MODEL_OUTPUT"):
+        parse(json.dumps(candidate), Outline)
+
+
+def test_failed_ready_save_does_not_publish_candidate(settings, monkeypatch):
+    store, fake, task, service = prepare(settings)
+    collect(service, task)
+    original = store.get(task.id).versions
+    real_save = store.save
+
+    def fail_candidate(value):
+        if value.status == "ready":
+            raise AppError("STORAGE_FAILED", "测试保存失败", 500)
+        return real_save(value)
+
+    monkeypatch.setattr(store, "save", fail_candidate)
+    events = collect(service, store.get(task.id))
+    assert events[-1][0] == "error"
+    restored = store.get(task.id)
+    assert restored.status == "error"
+    assert restored.versions == original
+
+
+def test_closing_incomplete_generator_marks_interrupted(settings):
+    store, fake, task, service = prepare(settings)
+
+    async def execute():
+        generator = service.generate(service.claim(task.id))
+        event, _ = await anext(generator)
+        assert event == "chunk"
+        await generator.aclose()
+
+    asyncio.run(execute())
+    assert store.get(task.id).status == "interrupted"
+    assert task.id not in service.active
+    assert not store.get(task.id).versions
+
+
+def test_budget_rate_snapshot_and_month_boundary(settings, monkeypatch):
+    budget = Budget(Store(settings.data_dir), settings)
+    monkeypatch.setattr(budget, "month", lambda: "2026-09")
+    reservation = budget.reserve(uuid4(), "outline", 10000, 10000)
+    monkeypatch.setattr(budget, "month", lambda: "2026-10")
+    assert budget.view().spent_or_reserved_cny == Decimal("0.1")
+    settings.input_price, settings.output_price = Decimal("10"), Decimal("40")
+    budget.settle(reservation, (1000, 1000), 2, 0.1)
+    assert budget.view().spent_or_reserved_cny == Decimal("0.01")
+
+
+def test_temporary_retry_is_finite(settings):
+    store, fake, task, service = prepare(settings)
+    fake.fail = AppError("MODEL_TEMPORARY", "测试临时故障", 502)
+    events = collect(service, task)
+    assert events[-1][0] == "error"
+    assert len(fake.calls) == 2
+    fake.fail = AppError("MODEL_AUTH", "测试认证失败", 502)
+    previous = len(fake.calls)
+    collect(service, store.get(task.id))
+    assert len(fake.calls) == previous + 1

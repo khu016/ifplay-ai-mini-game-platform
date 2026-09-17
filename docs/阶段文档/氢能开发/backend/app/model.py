@@ -13,10 +13,15 @@ class DeepSeek:
         self.client_factory = client_factory
 
     async def stream(self, task_id, stage, messages, max_output):
-        payload = {"model": self.settings.model, "messages": messages,
-                   "thinking": {"type": "disabled"}, "max_tokens": max_output,
-                   "response_format": {"type": "json_object"}, "stream": True,
-                   "stream_options": {"include_usage": True}}
+        payload = {
+            "model": self.settings.model,
+            "messages": messages,
+            "thinking": {"type": "disabled"},
+            "max_tokens": max_output,
+            "response_format": {"type": "json_object"},
+            "stream": True,
+            "stream_options": {"include_usage": True},
+        }
         # UTF-8 字节数加协议开销是保守 token 上界；异常用量保持预留并阻止后续调用。
         input_bound = len(json.dumps(messages, ensure_ascii=False).encode("utf-8")) + 2048
         charge_id = self.budget.reserve(task_id, stage, input_bound, max_output)
@@ -24,11 +29,14 @@ class DeepSeek:
         try:
             async with asyncio.timeout(self.settings.timeout):
                 # 客户端初始化也在兜底范围内。禁止重定向将 Authorization 发到其他站点。
-                async with self.client_factory(timeout=self.settings.timeout,
-                                               follow_redirects=False) as client:
+                async with self.client_factory(
+                    timeout=self.settings.timeout, follow_redirects=False
+                ) as client:
                     async with client.stream(
-                        "POST", "https://api.deepseek.com/chat/completions",
-                        headers={"Authorization": "Bearer " + self.settings.api_key}, json=payload,
+                        "POST",
+                        "https://api.deepseek.com/chat/completions",
+                        headers={"Authorization": "Bearer " + self.settings.api_key},
+                        json=payload,
                     ) as response:
                         if response.status_code in {401, 403}:
                             raise AppError("MODEL_AUTH", "DeepSeek 认证失败，请核对本地密钥。", 502)
@@ -52,7 +60,11 @@ class DeepSeek:
                                     usage = tuple(counts)
                             for choice in item.get("choices", []):
                                 if choice.get("finish_reason") == "length":
-                                    raise AppError("INVALID_MODEL_OUTPUT", "模型输出被截断，请调整后重试。", 502)
+                                    raise AppError(
+                                        "INVALID_MODEL_OUTPUT",
+                                        "模型输出被截断，请调整后重试。",
+                                        502,
+                                    )
                                 content = choice.get("delta", {}).get("content")
                                 if content:
                                     if not isinstance(content, str):

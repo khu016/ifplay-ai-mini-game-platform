@@ -1,4 +1,5 @@
 """本机验收入口；不自动收费，generate 必须显式执行。"""
+
 import argparse
 import asyncio
 from pathlib import Path
@@ -43,8 +44,9 @@ def run():
             if args.command == "create":
                 if args.description_file.stat().st_size > 16_000:
                     raise AppError("INVALID_REQUEST", "描述文件过大。")
-                body = CreateTask(description=args.description_file.read_text(encoding="utf-8"),
-                                  name=args.name)
+                body = CreateTask(
+                    description=args.description_file.read_text(encoding="utf-8"), name=args.name
+                )
                 task = Task(name=body.name, description=body.description)
                 store.save(task)
                 print("报告已创建，任务 ID：" + str(task.id))

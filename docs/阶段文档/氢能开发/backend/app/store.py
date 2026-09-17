@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 from pydantic import ValidationError
 
 from .errors import AppError
-from .schemas import Ledger, Task, now
+from .schemas import ErrorDetail, Ledger, Task, now
 
 
 class Store:
@@ -27,7 +27,9 @@ class Store:
         except BlockingIOError:
             self.lock_file.close()
             self.lock_file = None
-            raise AppError("STORE_BUSY", "已有进程使用同一数据目录，请勿启动多个服务。", 409) from None
+            raise AppError(
+                "STORE_BUSY", "已有进程使用同一数据目录，请勿启动多个服务。", 409
+            ) from None
 
     def release(self):
         if self.lock_file:
@@ -45,7 +47,9 @@ class Store:
         except FileNotFoundError:
             raise AppError("NOT_FOUND", "任务不存在。", 404) from None
         except (ValidationError, ValueError, UnicodeError):
-            raise AppError("STORAGE_CORRUPT", "本地记录损坏，已保留原文件，请联系执行者。", 500) from None
+            raise AppError(
+                "STORAGE_CORRUPT", "本地记录损坏，已保留原文件，请联系执行者。", 500
+            ) from None
         except OSError:
             raise AppError("STORAGE_FAILED", "无法读取本地记录。", 500) from None
 
@@ -66,9 +70,12 @@ class Store:
             finally:
                 os.close(directory_fd)
         except OSError:
-            raise AppError("STORAGE_FAILED", "无法保存本地记录，未覆盖已有有效版本。", 500) from None
+            raise AppError("STORAGE_FAILED", "本地记录保存或同步失败，请核查存储。", 500) from None
         finally:
-            temporary.unlink(missing_ok=True)
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     def get(self, task_id):
         with self.mutex:
@@ -89,7 +96,6 @@ class Store:
                 raise AppError("STORAGE_CORRUPT", "任务记录标识不一致。", 500)
             if task.status in {"extracting", "generating"}:
                 task.status = "interrupted"
-                from .schemas import ErrorDetail
                 task.error = ErrorDetail(code="INTERRUPTED", message="上次生成被中断，可显式重试。")
                 self.save(task)
 

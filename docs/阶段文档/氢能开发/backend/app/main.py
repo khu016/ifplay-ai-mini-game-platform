@@ -11,7 +11,16 @@ from .budget import Budget
 from .config import Settings
 from .errors import AppError
 from .model import DeepSeek
-from .schemas import BudgetView, CreateTask, ErrorResponse, Health, Outline, Task, markdown
+from .schemas import (
+    BudgetView,
+    CreateTask,
+    ErrorResponse,
+    GenerateRequest,
+    Health,
+    Outline,
+    Task,
+    markdown,
+)
 from .service import OutlineService
 from .store import Store
 
@@ -44,8 +53,13 @@ def create_app(settings=None, model_factory=None):
         origin = request.headers.get("origin")
         if origin and origin != str(request.base_url).rstrip("/"):
             return JSONResponse(AppError("LOCAL_ONLY", "不允许跨来源访问。", 403).payload(), 403)
-        if request.method == "POST" and request.headers.get("content-type", "").split(";")[0] != "application/json":
-            return JSONResponse(AppError("INVALID_REQUEST", "请求需使用 application/json。", 415).payload(), 415)
+        if (
+            request.method == "POST"
+            and request.headers.get("content-type", "").split(";")[0] != "application/json"
+        ):
+            return JSONResponse(
+                AppError("INVALID_REQUEST", "请求需使用 application/json。", 415).payload(), 415
+            )
         return await call_next(request)
 
     @app.exception_handler(AppError)
@@ -54,15 +68,22 @@ def create_app(settings=None, model_factory=None):
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request, exc):
-        return JSONResponse(AppError("INVALID_REQUEST", "请求字段或任务标识无效。", 422).payload(), 422)
+        return JSONResponse(
+            AppError("INVALID_REQUEST", "请求字段或任务标识无效。", 422).payload(), 422
+        )
 
     @app.exception_handler(HTTPException)
     async def http_error(request, exc):
-        return JSONResponse(AppError("HTTP_ERROR", "请求路径或方法不可用。", exc.status_code).payload(), exc.status_code)
+        return JSONResponse(
+            AppError("HTTP_ERROR", "请求路径或方法不可用。", exc.status_code).payload(),
+            exc.status_code,
+        )
 
     @app.exception_handler(Exception)
     async def unexpected_error(request, exc):
-        return JSONResponse(AppError("INTERNAL_ERROR", "服务暂时不可用，请联系执行者。", 500).payload(), 500)
+        return JSONResponse(
+            AppError("INTERNAL_ERROR", "服务暂时不可用，请联系执行者。", 500).payload(), 500
+        )
 
     errors = {code: {"model": ErrorResponse} for code in [400, 403, 404, 409, 415, 422, 500, 503]}
 
@@ -80,19 +101,36 @@ def create_app(settings=None, model_factory=None):
     def get_task(task_id: UUID):
         return store.get(task_id)
 
-    @app.post("/api/v1/tasks/{task_id}/outline", responses=errors,
-              response_class=StreamingResponse,
-              openapi_extra={"responses": {"200": {"description": "SSE: chunk* → done 或 error",
-                              "content": {"text/event-stream": {"schema": {"type": "string"}}}}}})
-    async def generate_outline(task_id: UUID):
+    @app.post(
+        "/api/v1/tasks/{task_id}/outline",
+        responses=errors,
+        response_class=StreamingResponse,
+        openapi_extra={
+            "responses": {
+                "200": {
+                    "description": "SSE: chunk* → done 或 error",
+                    "content": {"text/event-stream": {"schema": {"type": "string"}}},
+                }
+            }
+        },
+    )
+    async def generate_outline(task_id: UUID, body: GenerateRequest):
         task = service.claim(task_id)
 
         async def events():
-            async for event, data in service.generate(task):
-                yield f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+            generation = service.generate(task)
+            try:
+                async for event, data in generation:
+                    yield f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+            finally:
+                await generation.aclose()
+                service.active.discard(task.id)
 
-        return StreamingResponse(events(), media_type="text/event-stream",
-                                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+        return StreamingResponse(
+            events(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     def ready_task(task_id):
         task = store.get(task_id)
@@ -100,11 +138,18 @@ def create_app(settings=None, model_factory=None):
             raise AppError("OUTLINE_NOT_READY", "尚无有效大纲。", 409)
         return task
 
-    @app.get("/api/v1/tasks/{task_id}/outline.md", response_class=PlainTextResponse, responses=errors)
+    @app.get(
+        "/api/v1/tasks/{task_id}/outline.md", response_class=PlainTextResponse, responses=errors
+    )
     def get_markdown(task_id: UUID):
-        return PlainTextResponse(markdown(ready_task(task_id)), media_type="text/plain",
-                                 headers={"Content-Disposition": 'attachment; filename="outline.md"',
-                                          "X-Content-Type-Options": "nosniff"})
+        return PlainTextResponse(
+            markdown(ready_task(task_id)),
+            media_type="text/plain",
+            headers={
+                "Content-Disposition": 'attachment; filename="outline.md"',
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
 
     @app.get("/api/v1/tasks/{task_id}/outline.json", response_model=Outline, responses=errors)
     def get_outline(task_id: UUID):

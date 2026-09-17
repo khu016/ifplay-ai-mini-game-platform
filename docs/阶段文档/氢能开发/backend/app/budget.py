@@ -15,8 +15,10 @@ class Budget:
         return datetime.now().strftime("%Y-%m")
 
     def cost(self, input_tokens, output_tokens):
-        return (Decimal(input_tokens) * self.settings.input_price +
-                Decimal(output_tokens) * self.settings.output_price) / Decimal(1_000_000)
+        return (
+            Decimal(input_tokens) * self.settings.input_price
+            + Decimal(output_tokens) * self.settings.output_price
+        ) / Decimal(1_000_000)
 
     def reserve(self, task_id, stage, input_bound, max_output):
         self.settings.check_call()
@@ -25,15 +27,32 @@ class Budget:
         with self.store.ledger() as ledger:
             if any(charge.status == "uncertain" for charge in ledger.charges):
                 raise AppError("PRICING_UNCONFIRMED", "存在超出预估用量的调用，请先核查账本。", 503)
-            task_total = sum((c.charged_cny for c in ledger.charges if c.task_id == task_id),
-                             Decimal(0))
-            monthly_total = sum((c.charged_cny for c in ledger.charges if c.month == month),
-                                Decimal(0))
-            if (task_total + amount > self.settings.task_limit or
-                    monthly_total + amount > self.settings.monthly_limit):
+            task_total = sum(
+                (c.charged_cny for c in ledger.charges if c.task_id == task_id), Decimal(0)
+            )
+            monthly_total = sum(
+                (
+                    c.charged_cny
+                    for c in ledger.charges
+                    if c.month == month or c.settled_month == month or c.status == "reserved"
+                ),
+                Decimal(0),
+            )
+            if (
+                task_total + amount > self.settings.task_limit
+                or monthly_total + amount > self.settings.monthly_limit
+            ):
                 raise AppError("BUDGET_EXCEEDED", "本次调用将超过任务或月度预算，已阻止。", 409)
-            charge = Charge(task_id=task_id, month=month, stage=stage,
-                            model=self.settings.model, reserved_cny=amount, charged_cny=amount)
+            charge = Charge(
+                task_id=task_id,
+                month=month,
+                stage=stage,
+                model=self.settings.model,
+                reserved_cny=amount,
+                charged_cny=amount,
+                input_cny_per_million=self.settings.input_price,
+                output_cny_per_million=self.settings.output_price,
+            )
             ledger.charges.append(charge)
         return charge.id
 
@@ -45,7 +64,11 @@ class Budget:
             if usage is None:
                 return
             input_tokens, output_tokens = usage
-            amount = self.cost(input_tokens, output_tokens)
+            # 采用该调用预留时的费率快照，不受后续配置更新影响。
+            amount = (
+                Decimal(input_tokens) * charge.input_cny_per_million
+                + Decimal(output_tokens) * charge.output_cny_per_million
+            ) / Decimal(1_000_000)
             charge.input_tokens, charge.output_tokens = input_tokens, output_tokens
             if amount > charge.reserved_cny:
                 charge.charged_cny = amount
@@ -53,13 +76,24 @@ class Budget:
                 return
             charge.charged_cny = amount
             charge.status = "settled"
+            charge.settled_month = self.month()
 
     def view(self):
         month = self.month()
         with self.store.ledger() as ledger:
-            total = sum((c.charged_cny for c in ledger.charges if c.month == month), Decimal(0))
-        return BudgetView(month=month, spent_or_reserved_cny=total,
-                          remaining_cny=max(Decimal(0), self.settings.monthly_limit - total),
-                          monthly_limit_cny=self.settings.monthly_limit,
-                          task_limit_cny=self.settings.task_limit,
-                          pricing_confirmed=self.settings.pricing_confirmed)
+            total = sum(
+                (
+                    c.charged_cny
+                    for c in ledger.charges
+                    if c.month == month or c.settled_month == month or c.status == "reserved"
+                ),
+                Decimal(0),
+            )
+        return BudgetView(
+            month=month,
+            spent_or_reserved_cny=total,
+            remaining_cny=max(Decimal(0), self.settings.monthly_limit - total),
+            monthly_limit_cny=self.settings.monthly_limit,
+            task_limit_cny=self.settings.task_limit,
+            pricing_confirmed=self.settings.pricing_confirmed,
+        )
