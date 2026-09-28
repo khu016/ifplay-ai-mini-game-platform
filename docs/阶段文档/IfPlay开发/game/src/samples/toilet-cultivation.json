@@ -1,0 +1,116 @@
+{
+  "schemaVersion": "0.1",
+  "metadata": {
+    "id": "toilet-cultivation",
+    "title": "在公司厕所偷偷修仙七天",
+    "description": "荒诞限时生存模拟器：在公司的厕所隔间里偷偷修仙，七天内平衡灵气、精神状态与老板怀疑度。",
+    "genre": "荒诞生存",
+    "targetTurns": 7,
+    "lang": "zh-CN"
+  },
+  "clock": { "unit": "day", "total": 7 },
+  "stats": [
+    { "id": "spirit", "name": "灵气", "initial": 5, "min": 0, "max": 100, "visible": true },
+    { "id": "sanity", "name": "精神状态", "initial": 60, "min": 0, "max": 100, "visible": true },
+    { "id": "boss_susp", "name": "老板怀疑度", "initial": 0, "min": 0, "max": 100, "visible": true },
+    { "id": "colike", "name": "同事好感", "initial": 50, "min": 0, "max": 100, "visible": true },
+    { "id": "paper", "name": "剩余厕纸", "initial": 15, "min": 0, "max": 20, "visible": true }
+  ],
+  "flags": [
+    { "id": "f_secret", "name": "发现秘境入口" },
+    { "id": "f_auntie", "name": "保洁阿姨识破" },
+    { "id": "f_guardian", "name": "成为厕所守护者" }
+  ],
+  "events": [
+    {
+      "id": "e_meeting",
+      "title": "老板门外开会",
+      "body": "老板突然在厕所门外开起了会，脚步声就在隔间外。",
+      "weight": 3,
+      "cooldown": 2,
+      "options": [
+        { "text": "假装在工作（-精神状态，+老板怀疑）", "effects": [ { "op": "add_stat", "stat": "sanity", "delta": -5 }, { "op": "add_stat", "stat": "boss_susp", "delta": 5 } ] },
+        { "text": "继续修炼（+灵气，+老板怀疑）", "effects": [ { "op": "add_stat", "stat": "spirit", "delta": 10 }, { "op": "add_stat", "stat": "boss_susp", "delta": 10 } ] }
+      ]
+    },
+    {
+      "id": "e_borrow",
+      "title": "同事借纸",
+      "body": "隔壁隔间的同事敲门借纸，说是修炼材料不够了。",
+      "weight": 4,
+      "once": true,
+      "options": [
+        { "text": "借给他（+同事好感，-厕纸）", "effects": [ { "op": "add_stat", "stat": "colike", "delta": 10 }, { "op": "add_stat", "stat": "paper", "delta": -3 } ] },
+        { "text": "拒绝（-同事好感）", "effects": [ { "op": "add_stat", "stat": "colike", "delta": -10 } ] }
+      ]
+    },
+    {
+      "id": "e_secret",
+      "title": "马桶秘境入口",
+      "body": "马桶深处隐隐透出灵光，似乎有一处秘境入口。",
+      "condition": { "op": "compare", "stat": "spirit", "cmp": ">=", "value": 20 },
+      "weight": 2,
+      "once": true,
+      "options": [
+        { "text": "无视它（+少许灵气，专心修炼）", "effects": [ { "op": "add_stat", "stat": "spirit", "delta": 2 } ] },
+        { "text": "进入秘境（+灵气，-精神状态，发现入口）", "effects": [ { "op": "add_stat", "stat": "spirit", "delta": 20 }, { "op": "add_stat", "stat": "sanity", "delta": -5 }, { "op": "set_flag", "flag": "f_secret", "value": true } ] }
+      ]
+    },
+    {
+      "id": "e_auntie",
+      "title": "保洁阿姨识破",
+      "body": "保洁阿姨敲开门，眯着眼看你：你在里面修仙吧？",
+      "condition": { "op": "flag", "flag": "f_secret" },
+      "weight": 2,
+      "once": true,
+      "options": [
+        { "text": "坦白（被识破，+老板怀疑）", "effects": [ { "op": "set_flag", "flag": "f_auntie", "value": true }, { "op": "add_stat", "stat": "boss_susp", "delta": 10 } ] },
+        { "text": "用厕纸贿赂（-厕纸，+同事好感，被识破）", "effects": [ { "op": "add_stat", "stat": "paper", "delta": -5 }, { "op": "add_stat", "stat": "colike", "delta": 5 }, { "op": "set_flag", "flag": "f_auntie", "value": true } ] }
+      ]
+    },
+    {
+      "id": "e_report",
+      "title": "飞升周报",
+      "body": "领导要求提交本周的「飞升周报」。",
+      "condition": { "op": "turn", "cmp": ">=", "value": 3 },
+      "weight": 3,
+      "once": true,
+      "options": [
+        { "text": "认真写周报（-老板怀疑，-精神状态）", "effects": [ { "op": "add_stat", "stat": "boss_susp", "delta": -10 }, { "op": "add_stat", "stat": "sanity", "delta": -5 } ] },
+        { "text": "拖一拖（+老板怀疑）", "effects": [ { "op": "add_stat", "stat": "boss_susp", "delta": 10 } ] }
+      ]
+    },
+    {
+      "id": "e_guardian",
+      "title": "秘境深处",
+      "body": "秘境深处传来一个声音：留下，做这间厕所的守护者吧。",
+      "condition": { "op": "all", "conditions": [ { "op": "flag", "flag": "f_secret" }, { "op": "flag", "flag": "f_auntie" } ] },
+      "weight": 1,
+      "once": true,
+      "options": [
+        { "text": "转身离开（+精神状态）", "effects": [ { "op": "add_stat", "stat": "sanity", "delta": 5 } ] },
+        { "text": "留下守护（+灵气，-精神状态，成为守护者）", "effects": [ { "op": "set_flag", "flag": "f_guardian", "value": true }, { "op": "add_stat", "stat": "spirit", "delta": 15 }, { "op": "add_stat", "stat": "sanity", "delta": -5 } ] }
+      ]
+    },
+    {
+      "id": "e_daily",
+      "title": "今日选择",
+      "body": "在加班、摸鱼、修炼和隐藏身份之间，今天怎么过？",
+      "weight": 8,
+      "options": [
+        { "text": "修炼（+灵气，-精神状态）", "effects": [ { "op": "add_stat", "stat": "spirit", "delta": 25 }, { "op": "add_stat", "stat": "sanity", "delta": -10 } ] },
+        { "text": "摸鱼（+精神状态，+老板怀疑）", "effects": [ { "op": "add_stat", "stat": "sanity", "delta": 15 }, { "op": "add_stat", "stat": "boss_susp", "delta": 5 } ] },
+        { "text": "隐藏身份（-老板怀疑，+少许灵气）", "effects": [ { "op": "add_stat", "stat": "boss_susp", "delta": -8 }, { "op": "add_stat", "stat": "spirit", "delta": 3 } ] },
+        { "text": "加班（-精神状态，-老板怀疑，+同事好感）", "effects": [ { "op": "add_stat", "stat": "sanity", "delta": -10 }, { "op": "add_stat", "stat": "boss_susp", "delta": -5 }, { "op": "add_stat", "stat": "colike", "delta": 5 } ] }
+      ]
+    }
+  ],
+  "endings": [
+    { "id": "e_guardian_end", "title": "厕所守护者", "body": "你成为了这间厕所的守护者，白天上班，夜里守护秘境。", "condition": { "op": "flag", "flag": "f_guardian" }, "priority": 70 },
+    { "id": "e_ascend", "title": "飞升", "body": "七天闭关，你在马桶上原地飞升，成了公司传说。", "condition": { "op": "compare", "stat": "spirit", "cmp": ">=", "value": 100 }, "priority": 60 },
+    { "id": "e_exposed", "title": "身份暴露被开除", "body": "老板发现你在厕所修仙，当场把你开除。", "condition": { "op": "compare", "stat": "boss_susp", "cmp": ">=", "value": 100 }, "priority": 50 },
+    { "id": "e_breakdown", "title": "精神崩溃", "body": "连续修仙让你精神崩溃，被送进了医院。", "condition": { "op": "compare", "stat": "sanity", "cmp": "<=", "value": 0 }, "priority": 50 },
+    { "id": "e_quit", "title": "裸辞", "body": "受够了这七天，你递上辞职信，说要去终南山。", "condition": { "op": "compare", "stat": "sanity", "cmp": "<=", "value": 20 }, "priority": 25 },
+    { "id": "e_survive", "title": "安然度过七天", "body": "七天过去，你没飞升也没暴露，继续做社畜。", "condition": { "op": "turn", "cmp": ">", "value": 7 }, "priority": 10 }
+  ]
+}

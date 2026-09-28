@@ -1,0 +1,101 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 16px;
+  max-width: 640px;
+  margin-inline: auto;
+  line-height: 1.6;
+}
+
+h1 {
+  font-size: 1.4rem;
+}
+h2 {
+  font-size: 1.1rem;
+  margin: 0.4em 0;
+}
+.sub,
+.meta {
+  color: #888;
+  font-size: 0.85rem;
+}
+
+.game-list,
+.card,
+.stats,
+.actions,
+.options,
+.ending {
+  margin-top: 12px;
+}
+
+.card {
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.stat {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  display: flex;
+  gap: 8px;
+}
+.stat-name {
+  color: #666;
+}
+.stat-value {
+  font-weight: 700;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+button {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  background: #f6f6f6;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+button:hover {
+  background: #ececec;
+}
+
+.options button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 6px 0;
+}
+
+.body {
+  white-space: pre-wrap;
+}
+
+.ending {
+  border: 1px solid #c9a227;
+  background: #fff8e6;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.status {
+  margin-top: 8px;
+  color: #2f7d32;
+  font-size: 0.9rem;
+}

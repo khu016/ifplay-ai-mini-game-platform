@@ -1,0 +1,240 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ifplay.local/schema/gamespec-v0.1.json",
+  "title": "IfPlay GameSpec v0.1",
+  "description": "IfPlay 模拟器游戏规则数据结构。白名单结构化表达，禁止任意脚本/HTML/SQL。运行时校验以 src/validate/validator.ts 为准，本文件为规格工件。",
+  "type": "object",
+  "required": ["schemaVersion", "metadata", "clock", "stats", "flags", "events", "endings"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": "0.1" },
+    "metadata": {
+      "type": "object",
+      "required": ["id", "title", "description", "genre"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "genre": { "type": "string", "minLength": 1 },
+        "targetTurns": { "type": "integer", "minimum": 1 },
+        "lang": { "type": "string" }
+      }
+    },
+    "clock": {
+      "type": "object",
+      "required": ["unit", "total"],
+      "additionalProperties": false,
+      "properties": {
+        "unit": { "enum": ["day", "week", "month", "turn"] },
+        "total": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "stats": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "initial", "min", "max", "visible"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "initial": { "type": "number" },
+          "min": { "type": "number" },
+          "max": { "type": "number" },
+          "visible": { "type": "boolean" }
+        }
+      }
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "body", "weight", "options"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "title": { "type": "string", "minLength": 1 },
+          "body": { "type": "string" },
+          "condition": { "$ref": "#/$defs/condition" },
+          "weight": { "type": "number", "minimum": 0 },
+          "cooldown": { "type": "integer", "minimum": 1 },
+          "once": { "type": "boolean" },
+          "options": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["text", "effects"],
+              "additionalProperties": false,
+              "properties": {
+                "text": { "type": "string", "minLength": 1 },
+                "condition": { "$ref": "#/$defs/condition" },
+                "effects": { "type": "array", "items": { "$ref": "#/$defs/effect" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "endings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "priority"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "title": { "type": "string", "minLength": 1 },
+          "body": { "type": "string" },
+          "condition": { "$ref": "#/$defs/condition" },
+          "priority": { "type": "number" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "cmpOp": { "enum": [">=", "<=", ">", "<", "==", "!="] },
+    "condition": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["op", "flag"],
+          "additionalProperties": false,
+          "properties": {
+            "op": { "const": "flag" },
+            "flag": { "type": "string" },
+            "not": { "type": "boolean" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["op", "stat", "cmp", "value"],
+          "additionalProperties": false,
+          "properties": {
+            "op": { "const": "compare" },
+            "stat": { "type": "string" },
+            "cmp": { "$ref": "#/$defs/cmpOp" },
+            "value": { "type": "number" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["op", "cmp", "value"],
+          "additionalProperties": false,
+          "properties": {
+            "op": { "const": "turn" },
+            "cmp": { "$ref": "#/$defs/cmpOp" },
+            "value": { "type": "number" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["op", "conditions"],
+          "additionalProperties": false,
+          "properties": {
+            "op": { "const": "all" },
+            "conditions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/condition" } }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["op", "conditions"],
+          "additionalProperties": false,
+          "properties": {
+            "op": { "const": "any" },
+            "conditions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/condition" } }
+          }
+        }
+      ]
+    },
+    "effect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["op", "stat", "value"],
+          "additionalProperties": false,
+          "properties": {
+            "op": { "const": "set_stat" },
+            "stat": { "type": "string" },
+            "value": { "type": "number" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["op", "stat", "delta"],
+          "additionalProperties": false,
+          "properties": {
+            "op": { "const": "add_stat" },
+            "stat": { "type": "string" },
+            "delta": { "type": "number" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["op", "flag", "value"],
+          "additionalProperties": false,
+          "properties": {
+            "op": { "const": "set_flag" },
+            "flag": { "type": "string" },
+            "value": { "type": "boolean" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["op", "event"],
+          "additionalProperties": false,
+          "properties": {
+            "op": { "const": "goto" },
+            "event": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["op", "ending"],
+          "additionalProperties": false,
+          "properties": {
+            "op": { "const": "trigger_ending" },
+            "ending": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["op", "rolls"],
+          "additionalProperties": false,
+          "properties": {
+            "op": { "const": "roll" },
+            "rolls": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["weight", "effects"],
+                "additionalProperties": false,
+                "properties": {
+                  "weight": { "type": "number", "minimum": 0 },
+                  "effects": { "type": "array", "items": { "$ref": "#/$defs/effect" } }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,134 @@
+{
+  "schemaVersion": "0.1",
+  "metadata": {
+    "id": "alien-phone-film",
+    "title": "我在三线城市给外星人贴手机膜",
+    "description": "荒诞经营模拟器：你经营一家给外星人贴手机膜的街边小店，在赚钱与隐藏地球身份之间走钢丝。",
+    "genre": "荒诞经营",
+    "targetTurns": 20,
+    "lang": "zh-CN"
+  },
+  "clock": { "unit": "day", "total": 20 },
+  "stats": [
+    { "id": "balance", "name": "余额", "initial": 500, "min": 0, "max": 10000, "visible": true },
+    { "id": "flow", "name": "每日客流", "initial": 0, "min": 0, "max": 20, "visible": true },
+    { "id": "rating", "name": "外星顾客好评", "initial": 50, "min": 0, "max": 100, "visible": true },
+    { "id": "exposure", "name": "地球身份暴露度", "initial": 0, "min": 0, "max": 100, "visible": true },
+    { "id": "stock", "name": "库存", "initial": 20, "min": 0, "max": 50, "visible": true }
+  ],
+  "flags": [
+    { "id": "f_influencer", "name": "网红探店过" },
+    { "id": "f_chain", "name": "获得星际连锁机会" },
+    { "id": "f_debt", "name": "欠下高利贷" }
+  ],
+  "events": [
+    {
+      "id": "e_ordinary",
+      "title": "普通的一天",
+      "body": "街坊的外星人陆续来贴膜，生意不温不火。",
+      "weight": 10,
+      "options": [
+        { "text": "认真服务（+余额，+好评，-库存）", "effects": [ { "op": "add_stat", "stat": "balance", "delta": 80 }, { "op": "add_stat", "stat": "stock", "delta": -1 }, { "op": "add_stat", "stat": "rating", "delta": 2 } ] },
+        { "text": "加价宰客（+余额更多，但-好评、+暴露度）", "effects": [ { "op": "add_stat", "stat": "balance", "delta": 150 }, { "op": "add_stat", "stat": "rating", "delta": -5 }, { "op": "add_stat", "stat": "exposure", "delta": 5 } ] }
+      ]
+    },
+    {
+      "id": "e_collapse",
+      "title": "坍缩星球手机",
+      "body": "一位顾客递来一部手机——屏幕里是一颗正在坍缩的星球。",
+      "condition": { "op": "compare", "stat": "stock", "cmp": ">=", "value": 1 },
+      "weight": 2,
+      "options": [
+        { "text": "高价接单（大赚，但有风险）", "effects": [ { "op": "add_stat", "stat": "balance", "delta": 400 }, { "op": "add_stat", "stat": "stock", "delta": -1 }, { "op": "roll", "rolls": [ { "weight": 6, "effects": [ { "op": "add_stat", "stat": "rating", "delta": 10 } ] }, { "weight": 4, "effects": [ { "op": "add_stat", "stat": "rating", "delta": -10 }, { "op": "add_stat", "stat": "exposure", "delta": 8 } ] } ] } ] },
+        { "text": "婉拒这单（略降好评）", "effects": [ { "op": "add_stat", "stat": "rating", "delta": -2 } ] }
+      ]
+    },
+    {
+      "id": "e_comm",
+      "title": "跨星系通信要求",
+      "body": "顾客要求贴膜后手机仍能进行跨星系通信。",
+      "condition": { "op": "compare", "stat": "rating", "cmp": ">=", "value": 40 },
+      "weight": 3,
+      "options": [
+        { "text": "用特制量子膜（+余额，+好评，-库存）", "effects": [ { "op": "add_stat", "stat": "balance", "delta": 180 }, { "op": "add_stat", "stat": "stock", "delta": -1 }, { "op": "add_stat", "stat": "rating", "delta": 5 } ] },
+        { "text": "敷衍了事（+余额，但-好评）", "effects": [ { "op": "add_stat", "stat": "balance", "delta": 100 }, { "op": "add_stat", "stat": "rating", "delta": -8 } ] }
+      ]
+    },
+    {
+      "id": "e_influencer",
+      "title": "外星网红突然探店",
+      "body": "一个百万粉丝的外星网红突然到店直播探店，全场屏息。",
+      "weight": 1,
+      "once": true,
+      "options": [
+        { "text": "全力接待（赌一把爆红）", "effects": [ { "op": "set_flag", "flag": "f_influencer", "value": true }, { "op": "roll", "rolls": [ { "weight": 7, "effects": [ { "op": "add_stat", "stat": "flow", "delta": 10 }, { "op": "add_stat", "stat": "rating", "delta": 15 }, { "op": "set_flag", "flag": "f_chain", "value": true } ] }, { "weight": 3, "effects": [ { "op": "add_stat", "stat": "exposure", "delta": 15 }, { "op": "add_stat", "stat": "rating", "delta": -5 } ] } ] } ] },
+        { "text": "闭店谢客（客流流失）", "effects": [ { "op": "add_stat", "stat": "flow", "delta": -5 } ] }
+      ]
+    },
+    {
+      "id": "e_4d",
+      "title": "四维屏幕膜进货",
+      "body": "进货时收到一批只适配四维屏幕的手机膜，怎么处理？",
+      "weight": 2,
+      "once": true,
+      "options": [
+        { "text": "退货（略升好评）", "effects": [ { "op": "add_stat", "stat": "rating", "delta": 2 } ] },
+        { "text": "低价清仓（亏钱但去库存）", "effects": [ { "op": "add_stat", "stat": "balance", "delta": -120 }, { "op": "add_stat", "stat": "stock", "delta": 5 }, { "op": "add_stat", "stat": "rating", "delta": -3 } ] },
+        { "text": "研究转卖（赚钱但增加暴露）", "effects": [ { "op": "add_stat", "stat": "balance", "delta": 300 }, { "op": "add_stat", "stat": "stock", "delta": 3 }, { "op": "add_stat", "stat": "exposure", "delta": 10 } ] }
+      ]
+    },
+    {
+      "id": "e_report",
+      "title": "隔壁店举报",
+      "body": "隔壁店老板举报你店里半夜发出绿色光芒。",
+      "condition": { "op": "compare", "stat": "exposure", "cmp": ">=", "value": 20 },
+      "weight": 2,
+      "cooldown": 3,
+      "options": [
+        { "text": "塞红包封口（-余额，-暴露度）", "effects": [ { "op": "add_stat", "stat": "balance", "delta": -150 }, { "op": "add_stat", "stat": "exposure", "delta": -10 } ] },
+        { "text": "装傻充愣（+暴露度，-客流）", "effects": [ { "op": "add_stat", "stat": "exposure", "delta": 15 }, { "op": "add_stat", "stat": "flow", "delta": -3 } ] }
+      ]
+    },
+    {
+      "id": "e_loan",
+      "title": "星际高利贷",
+      "body": "一个星际高利贷上门，问你借不借钱周转。",
+      "weight": 2,
+      "once": true,
+      "options": [
+        { "text": "借钱（+余额，但会招来催债）", "effects": [ { "op": "add_stat", "stat": "balance", "delta": 800 }, { "op": "set_flag", "flag": "f_debt", "value": true } ] },
+        { "text": "不借（略降好评）", "effects": [ { "op": "add_stat", "stat": "rating", "delta": -1 } ] }
+      ]
+    },
+    {
+      "id": "e_collect",
+      "title": "催债上门",
+      "body": "高利贷的人找上门了。",
+      "condition": { "op": "flag", "flag": "f_debt" },
+      "weight": 6,
+      "cooldown": 2,
+      "options": [
+        { "text": "还钱（-余额，还清债务）", "effects": [ { "op": "add_stat", "stat": "balance", "delta": -400 }, { "op": "set_flag", "flag": "f_debt", "value": false } ] },
+        { "text": "跑路（+暴露度）", "effects": [ { "op": "add_stat", "stat": "exposure", "delta": 20 } ] }
+      ]
+    },
+    {
+      "id": "e_supply",
+      "title": "库存见底",
+      "body": "手机膜快用完了，需要补货。",
+      "condition": { "op": "compare", "stat": "stock", "cmp": "<=", "value": 5 },
+      "weight": 5,
+      "options": [
+        { "text": "进货（-余额，+库存）", "effects": [ { "op": "add_stat", "stat": "balance", "delta": -150 }, { "op": "add_stat", "stat": "stock", "delta": 20 } ] },
+        { "text": "省着用（-好评）", "effects": [ { "op": "add_stat", "stat": "rating", "delta": -5 } ] }
+      ]
+    }
+  ],
+  "endings": [
+    { "id": "e_chain", "title": "星际连锁品牌", "body": "网红探店爆红后，你的口碑一路飙升，拿到了星际连锁加盟邀请。", "condition": { "op": "all", "conditions": [ { "op": "flag", "flag": "f_chain" }, { "op": "compare", "stat": "rating", "cmp": ">=", "value": 80 } ] }, "priority": 70 },
+    { "id": "e_success", "title": "星际手机膜大亨", "body": "你攒下了扩张资金，把贴膜生意做成了三线城市传说。", "condition": { "op": "compare", "stat": "balance", "cmp": ">=", "value": 3000 }, "priority": 60 },
+    { "id": "e_bankrupt", "title": "口碑崩盘倒闭", "body": "顾客差评如潮，你的小店关门大吉。", "condition": { "op": "compare", "stat": "rating", "cmp": "<=", "value": 0 }, "priority": 45 },
+    { "id": "e_exposed", "title": "身份暴露", "body": "你地球人的身份彻底暴露，连夜跑路。", "condition": { "op": "compare", "stat": "exposure", "cmp": ">=", "value": 100 }, "priority": 40 },
+    { "id": "e_normal", "title": "小本经营二十年", "body": "二十天过去，你还在三线城市安安稳稳地贴着膜。", "condition": { "op": "turn", "cmp": ">", "value": 20 }, "priority": 10 }
+  ]
+}

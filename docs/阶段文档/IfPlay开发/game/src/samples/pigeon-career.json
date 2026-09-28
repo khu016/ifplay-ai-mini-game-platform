@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "0.1",
+  "metadata": {
+    "id": "pigeon-career",
+    "title": "被裁后我开始给鸽子做职业规划",
+    "description": "荒诞人生选择模拟器：被裁后你开了一家鸽子职业规划工作室，在荒诞客户与爆红之间经营人生。",
+    "genre": "荒诞人生",
+    "targetTurns": 12,
+    "lang": "zh-CN"
+  },
+  "clock": { "unit": "month", "total": 12 },
+  "stats": [
+    { "id": "cash", "name": "现金", "initial": 30000, "min": 0, "max": 100000, "visible": true },
+    { "id": "sanity", "name": "理智", "initial": 80, "min": 0, "max": 100, "visible": true },
+    { "id": "employ", "name": "鸽子就业率", "initial": 0, "min": 0, "max": 100, "visible": true },
+    { "id": "fame", "name": "互联网声望", "initial": 0, "min": 0, "max": 100, "visible": true },
+    { "id": "complaint", "name": "客户投诉", "initial": 0, "min": 0, "max": 100, "visible": true }
+  ],
+  "flags": [
+    { "id": "f_viral", "name": "自媒体爆红" },
+    { "id": "f_cross", "name": "跨物种转型" }
+  ],
+  "events": [
+    {
+      "id": "e_bigco",
+      "title": "大厂送信鸽子",
+      "body": "第一位客户坚持想进互联网大厂送信。",
+      "weight": 3,
+      "once": true,
+      "options": [
+        { "text": "接单（+现金，+就业率，有风险）", "effects": [ { "op": "add_stat", "stat": "cash", "delta": 5000 }, { "op": "add_stat", "stat": "employ", "delta": 5 }, { "op": "roll", "rolls": [ { "weight": 6, "effects": [ { "op": "add_stat", "stat": "fame", "delta": 10 } ] }, { "weight": 4, "effects": [ { "op": "add_stat", "stat": "complaint", "delta": 10 } ] } ] } ] },
+        { "text": "劝他别去大厂（-理智，+声望）", "effects": [ { "op": "add_stat", "stat": "sanity", "delta": -5 }, { "op": "add_stat", "stat": "fame", "delta": 8 } ] }
+      ]
+    },
+    {
+      "id": "e_blank",
+      "title": "简历空白的鸽子",
+      "body": "一只鸽子简历空白，却要求月薪三万。",
+      "weight": 3,
+      "once": true,
+      "options": [
+        { "text": "帮他润色简历（-理智，赌一把）", "effects": [ { "op": "add_stat", "stat": "sanity", "delta": -10 }, { "op": "roll", "rolls": [ { "weight": 5, "effects": [ { "op": "add_stat", "stat": "employ", "delta": 12 }, { "op": "add_stat", "stat": "fame", "delta": 5 } ] }, { "weight": 5, "effects": [ { "op": "add_stat", "stat": "complaint", "delta": 10 } ] } ] } ] },
+        { "text": "拒绝（+客户投诉）", "effects": [ { "op": "add_stat", "stat": "complaint", "delta": 10 } ] }
+      ]
+    },
+    {
+      "id": "e_weekend",
+      "title": "鸽子群要求双休",
+      "body": "鸽子群集体要求实行双休。",
+      "weight": 3,
+      "once": true,
+      "options": [
+        { "text": "同意双休（-现金，+声望，+就业率）", "effects": [ { "op": "add_stat", "stat": "cash", "delta": -3000 }, { "op": "add_stat", "stat": "fame", "delta": 10 }, { "op": "add_stat", "stat": "employ", "delta": 8 } ] },
+        { "text": "拒绝（+客户投诉）", "effects": [ { "op": "add_stat", "stat": "complaint", "delta": 15 } ] }
+      ]
+    },
+    {
+      "id": "e_viral",
+      "title": "自媒体突然爆红",
+      "body": "有自媒体发现了你的项目，视频突然爆红。",
+      "condition": { "op": "compare", "stat": "fame", "cmp": ">=", "value": 20 },
+      "weight": 2,
+      "once": true,
+      "options": [
+        { "text": "配合采访（+声望，+就业率，标记爆红）", "effects": [ { "op": "set_flag", "flag": "f_viral", "value": true }, { "op": "add_stat", "stat": "fame", "delta": 20 }, { "op": "add_stat", "stat": "employ", "delta": 10 } ] },
+        { "text": "保持低调（+少许声望）", "effects": [ { "op": "add_stat", "stat": "fame", "delta": 5 } ] }
+      ]
+    },
+    {
+      "id": "e_hunter",
+      "title": "猎头跨物种邀约",
+      "body": "猎头邀请你转型做跨物种人力资源。",
+      "condition": { "op": "compare", "stat": "employ", "cmp": ">=", "value": 30 },
+      "weight": 2,
+      "once": true,
+      "options": [
+        { "text": "婉拒（+声望）", "effects": [ { "op": "add_stat", "stat": "fame", "delta": 8 } ] },
+        { "text": "接受转型（+现金，-理智，+声望，标记转型）", "effects": [ { "op": "set_flag", "flag": "f_cross", "value": true }, { "op": "add_stat", "stat": "cash", "delta": 10000 }, { "op": "add_stat", "stat": "sanity", "delta": -5 }, { "op": "add_stat", "stat": "fame", "delta": 10 } ] }
+      ]
+    },
+    {
+      "id": "e_absent",
+      "title": "鸽子集体放鸽子",
+      "body": "面试当天，鸽子客户们集体放你鸽子。",
+      "condition": { "op": "compare", "stat": "employ", "cmp": ">=", "value": 20 },
+      "weight": 2,
+      "once": true,
+      "options": [
+        { "text": "紧急补救（-理智，赌一把）", "effects": [ { "op": "add_stat", "stat": "sanity", "delta": -15 }, { "op": "roll", "rolls": [ { "weight": 5, "effects": [ { "op": "add_stat", "stat": "complaint", "delta": -5 }, { "op": "add_stat", "stat": "employ", "delta": 5 } ] }, { "weight": 5, "effects": [ { "op": "add_stat", "stat": "complaint", "delta": 15 } ] } ] } ] },
+        { "text": "顺势营销（+声望，+投诉）", "effects": [ { "op": "add_stat", "stat": "fame", "delta": 10 }, { "op": "add_stat", "stat": "complaint", "delta": 5 } ] }
+      ]
+    },
+    {
+      "id": "e_daily",
+      "title": "日常经营",
+      "body": "工作室的日常，今天怎么安排？",
+      "weight": 8,
+      "options": [
+        { "text": "接普通单（+现金，+就业率）", "effects": [ { "op": "add_stat", "stat": "cash", "delta": 3000 }, { "op": "add_stat", "stat": "employ", "delta": 6 } ] },
+        { "text": "休息（+理智）", "effects": [ { "op": "add_stat", "stat": "sanity", "delta": 12 } ] },
+        { "text": "做宣传（+声望，-现金）", "effects": [ { "op": "add_stat", "stat": "fame", "delta": 8 }, { "op": "add_stat", "stat": "cash", "delta": -1000 } ] }
+      ]
+    }
+  ],
+  "endings": [
+    { "id": "e_cross_end", "title": "跨物种人力资源", "body": "你转型为跨物种人力资源顾问，在鸽子与人类之间牵线搭桥。", "condition": { "op": "all", "conditions": [ { "op": "flag", "flag": "f_cross" }, { "op": "compare", "stat": "sanity", "cmp": ">=", "value": 40 } ] }, "priority": 70 },
+    { "id": "e_success", "title": "鸽子猎头帝国", "body": "鸽子就业率与声望双高，你建立了鸽子猎头帝国。", "condition": { "op": "all", "conditions": [ { "op": "compare", "stat": "employ", "cmp": ">=", "value": 55 }, { "op": "compare", "stat": "fame", "cmp": ">=", "value": 40 } ] }, "priority": 60 },
+    { "id": "e_fail", "title": "鸽飞蛋打", "body": "现金耗尽或投诉爆表，工作室彻底崩盘。", "condition": { "op": "any", "conditions": [ { "op": "compare", "stat": "cash", "cmp": "<=", "value": 0 }, { "op": "compare", "stat": "complaint", "cmp": ">=", "value": 100 } ] }, "priority": 45 },
+    { "id": "e_mad", "title": "心态崩了", "body": "荒诞的客户让你理智归零，关了工作室去喂鸽子。", "condition": { "op": "compare", "stat": "sanity", "cmp": "<=", "value": 0 }, "priority": 40 },
+    { "id": "e_normal", "title": "平凡工作室", "body": "十二个月过去，你的工作室不温不火地经营着。", "condition": { "op": "turn", "cmp": ">", "value": 12 }, "priority": 10 }
+  ]
+}
