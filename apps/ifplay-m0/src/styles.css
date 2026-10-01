@@ -1,0 +1,328 @@
+:root {
+  --bg: #10131c;
+  --panel: #1a1f2e;
+  --text: #e8ecf5;
+  --muted: #9aa3b8;
+  --accent: #7c5cff;
+  --danger: #ff5c7a;
+  --ok: #3ad29f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.page {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100%;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 选择页 */
+.select h1 {
+  font-size: 24px;
+  margin: 8px 0 0;
+}
+.sub {
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+.game-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.game-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid #2a3145;
+  border-radius: 12px;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.game-name {
+  font-size: 18px;
+  font-weight: 700;
+}
+.game-desc,
+.game-goal {
+  font-size: 13px;
+  color: var(--muted);
+}
+.game-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  color: var(--accent);
+}
+
+/* 可玩页 */
+.play-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.play-title h2 {
+  margin: 0;
+  font-size: 17px;
+}
+.play-title p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.btn {
+  padding: 8px 12px;
+  border: 1px solid #2a3145;
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.action-btn {
+  background: color-mix(in srgb, var(--accent) 20%, var(--panel));
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.stat {
+  flex: 1 1 40%;
+  background: var(--panel);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+}
+.stat-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.stat-value {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.meters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.meter {
+  display: grid;
+  grid-template-columns: 56px 1fr 56px;
+  align-items: center;
+  gap: 8px;
+}
+.meter-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.meter-bar {
+  height: 10px;
+  border-radius: 5px;
+  background: #262c40;
+  overflow: hidden;
+}
+.meter-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 60ms linear;
+}
+.meter-value {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+}
+
+.message {
+  background: #262c40;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 13px;
+  min-height: 20px;
+}
+
+.queue {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.queue h4,
+.panel h4 {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.queue-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border-radius: 10px;
+  padding: 10px;
+}
+.queue-name {
+  font-weight: 600;
+}
+.queue-detail {
+  flex: 1;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.panel {
+  background: var(--panel);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.panel-body {
+  margin: 0;
+  font-size: 13px;
+  white-space: pre-line;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* 点击时机 */
+.tap-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tap-zone {
+  background: var(--panel);
+  border: 1px solid #2a3145;
+  border-radius: 12px;
+  padding: 28px 16px;
+  cursor: pointer;
+  touch-action: none;
+}
+.tap-track {
+  position: relative;
+  height: 24px;
+  border-radius: 12px;
+  background: #262c40;
+  overflow: hidden;
+}
+.tap-window {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--ok);
+  opacity: 0.5;
+}
+.tap-marker {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 3px;
+  background: var(--text);
+  border-radius: 2px;
+}
+.tap-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.result h3 {
+  margin: 0;
+  font-size: 22px;
+}
+.result-summary {
+  margin: 0;
+  color: var(--muted);
+}
+
+.log {
+  background: var(--panel);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 12px;
+  color: var(--muted);
+  max-height: 200px;
+  overflow-y: auto;
+}
+.log.open {
+  max-height: none;
+}
+.log summary {
+  cursor: pointer;
+  color: var(--text);
+}
+
+/* 拖拽合成 */
+.drag-area { display: flex; flex-direction: column; gap: 12px; }
+.drag-slots { display: flex; gap: 8px; }
+.drop-slot {
+  flex: 1; min-height: 88px; border: 2px dashed #2a3145; border-radius: 12px;
+  background: var(--panel); padding: 8px; display: flex; flex-direction: column; gap: 6px;
+  align-items: center; justify-content: center; text-align: center;
+}
+.drop-slot.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--panel)); }
+.drop-slot-name { font-size: 12px; color: var(--muted); }
+.drop-slot-empty { font-size: 13px; color: var(--muted); }
+.drop-slot-content { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.drag-items { display: flex; flex-wrap: wrap; gap: 8px; }
+.drag-item {
+  display: flex; align-items: center; gap: 6px; padding: 8px 12px;
+  background: var(--panel); border: 1px solid #2a3145; border-radius: 10px; color: var(--text);
+  cursor: grab; touch-action: none;
+}
+.drag-item.dragging { opacity: 0.5; }
+.drag-item.disabled { opacity: 0.35; cursor: not-allowed; }
+.drag-item-count { font-size: 11px; color: var(--muted); }
+.drag-hint { margin: 0; font-size: 12px; color: var(--muted); text-align: center; }
+.btn.tiny { padding: 2px 8px; font-size: 11px; }
