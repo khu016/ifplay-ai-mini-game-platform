@@ -5,6 +5,7 @@ import { createStore, type Store } from '@/core/store';
 import { saveGame, loadGame, clearSave } from '@/core/save';
 import { validateBundle, type GameBundle } from '@/core/schema';
 import { moduleRegistry } from '@/modules/registry';
+import { recordStats } from '@/core/stats';
 import type { GameplayModule } from '@/modules/contract';
 import type { ModuleContext } from '@/core/context';
 import type { NormalizedInput } from '@/core/input';
@@ -45,7 +46,12 @@ export class GameRuntime {
     this.store = createStore(initial);
 
     this.bus.on((e) => {
-      if (e.type === 'game:ended') this._ended = true;
+      if (e.type === 'game:ended') {
+        this._ended = true;
+        if (this.module.scoreOf) {
+          recordStats(this.bundle.manifest.id, this.module.scoreOf(this.store.get()));
+        }
+      }
     });
   }
 

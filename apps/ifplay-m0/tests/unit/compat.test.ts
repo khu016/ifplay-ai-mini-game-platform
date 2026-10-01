@@ -20,18 +20,26 @@ describe('四玩法兼容矩阵', () => {
     }
   });
 
-  it('M0 两款（runtimeVersion 0.2）回归：仍可推进', () => {
-    const alien = createGame(bundles[0].bundle, { seed: 1 });
+  it('M0/M1 四款回归：均可推进', () => {
+    const alien = createGame(bundles[0].bundle, { seed: 1 }); // business
     alien.step({ kind: 'action', actionId: 'nextTurn' });
     expect((alien.state as { turn: number }).turn).toBe(2);
 
-    const toilet = createGame(bundles[1].bundle, { seed: 1 });
+    const toilet = createGame(bundles[1].bundle, { seed: 1 }); // timing
     toilet.tick(100);
     expect((toilet.state as { marker: number }).marker).toBeGreaterThan(0);
+
+    const pie = createGame(bundles[2].bundle, { seed: 1 }); // drag-merge
+    pie.step({ kind: 'action', actionId: 'drag', params: { itemId: 'boss_pie', slotId: 'left' } });
+    expect((pie.state as { step: number }).step).toBe(1);
+
+    const dragon = createGame(bundles[3].bundle, { seed: 1 }); // story-quiz
+    dragon.step({ kind: 'action', actionId: 'choose', params: { choiceId: 'c_redpacket' } });
+    expect((dragon.state as { currentNodeId: string }).currentNodeId).toBe('rp');
   });
 
   it('v0.2 与 v0.3 运行时版本共存', () => {
     const versions = bundles.map((b) => b.bundle.manifest.runtimeVersion).sort();
-    expect(versions).toEqual(['0.2', '0.2', '0.3', '0.3']);
+    expect(versions).toEqual(['0.2', '0.3', '0.3', '0.3']);
   });
 });

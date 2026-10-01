@@ -17,4 +17,6 @@ export interface GameplayModule<C = unknown, S = Record<string, unknown>> {
   serialize(state: S): unknown;
   deserialize(json: unknown, config: C): S;
   view(state: S, config: C): ModuleView;
+  // 可选：从状态提取本局得分（用于跨局最佳成绩统计）
+  scoreOf?(state: S): number;
 }
