@@ -1,0 +1,51 @@
+diff --git a/packages/core/src/core/openaiContentGenerator/provider/deepseek.ts b/packages/core/src/core/openaiContentGenerator/provider/deepseek.ts
+index 9b5fd74..abcd6d5 100644
+--- a/packages/core/src/core/openaiContentGenerator/provider/deepseek.ts
++++ b/packages/core/src/core/openaiContentGenerator/provider/deepseek.ts
+@@ -10,6 +10,24 @@ import type { ContentGeneratorConfig } from '../../contentGenerator.js';
+ import { DefaultOpenAICompatibleProvider } from './default.js';
+ import type { GenerateContentConfig } from '@google/genai';
+ 
++const DISABLE_THINKING_ENV = 'POC_DEEPSEEK_DISABLE_THINKING';
++
++// 显式关闭 DeepSeek 思考模式：仅当 POC_DEEPSEEK_DISABLE_THINKING=1 时改写请求，
++// 未设置该环境变量时与上游行为完全一致。reasoning_effort 与 thinking 互斥，一并移除。
++function applyThinkingGate(
++  request: OpenAI.Chat.ChatCompletionCreateParams,
++): OpenAI.Chat.ChatCompletionCreateParams {
++  if (process.env[DISABLE_THINKING_ENV] !== '1') {
++    return request;
++  }
++
++  const gated: Record<string, unknown> = { ...request };
++  delete gated['reasoning_effort'];
++  gated['thinking'] = { type: 'disabled' };
++
++  return gated as unknown as OpenAI.Chat.ChatCompletionCreateParams;
++}
++
+ export class DeepSeekOpenAICompatibleProvider extends DefaultOpenAICompatibleProvider {
+   constructor(
+     contentGeneratorConfig: ContentGeneratorConfig,
+@@ -32,7 +50,7 @@ export class DeepSeekOpenAICompatibleProvider extends DefaultOpenAICompatiblePro
+   ): OpenAI.Chat.ChatCompletionCreateParams {
+     const baseRequest = super.buildRequest(request, userPromptId);
+     if (!baseRequest.messages?.length) {
+-      return baseRequest;
++      return applyThinkingGate(baseRequest);
+     }
+ 
+     const messages = baseRequest.messages.map((message) => {
+@@ -72,10 +90,10 @@ export class DeepSeekOpenAICompatibleProvider extends DefaultOpenAICompatiblePro
+       } as OpenAI.Chat.ChatCompletionMessageParam;
+     });
+ 
+-    return {
++    return applyThinkingGate({
+       ...baseRequest,
+       messages,
+-    };
++    });
+   }
+ 
+   override getDefaultGenerationConfig(): GenerateContentConfig {

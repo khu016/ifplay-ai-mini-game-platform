@@ -1,0 +1,104 @@
+{
+  "opengame": {
+    "repo": "https://github.com/leigest519/OpenGame",
+    "description": "OpenGame: Open Agentic Coding for Games",
+    "candidateSha": "c9bea37786af524bf3bbe802f2b67d23816fa5c0",
+    "shaLocked": true,
+    "shaLockNote": "2026-10-03 零费用容器验证全部通过。alpine 轮：npm ci（lockfile 1307 包）/build/typecheck 全绿（顺序须先 build 后 typecheck：项目引用依赖 dist 产物）。glibc 轮（node:20-slim，经 DaoCloud 缓存拉取后与官方 registry 的 linux/arm64 manifest 摘要 sha256:10fc5f5f33cba34a4befa58fcf95f724e67707fab7c32fb8cd3fcf90ebcc20df 逐一比对一致）：npm ci ✅ + npm rebuild sharp（glibc 预编译需此步，libvips-8.14.5-linux-arm64v8 完整性校验过）✅ + build ✅ + typecheck ✅；离线冒烟 node packages/cli/dist/index.js --version=0.6.0、--help 均 rc=0（--network none + /work 只读挂载，onnxruntime/sharp 原生模块加载成功）。产物 packages/cli/dist 1534 文件、core 1120 文件、sdk/test-utils 各 11 文件，/work 共 1.2G。",
+    "license": "Apache-2.0",
+    "version": "0.6.0",
+    "buildImage": {
+      "reference": "node:20-slim@sha256:10fc5f5f33cba34a4befa58fcf95f724e67707fab7c32fb8cd3fcf90ebcc20df",
+      "note": "生成/构建容器基础镜像按官方 linux/arm64 manifest digest 固定（内容寻址），不用可变 tag；核验链见 reports/阶段一-基础镜像核验记录.md"
+    },
+    "buildVerification": {
+      "steps": ["npm ci --no-audit --no-fund", "npm rebuild sharp", "npm run build", "npm run typecheck"],
+      "smoke": "node packages/cli/dist/index.js --version (=0.6.0) / --help，--network none 只读容器内 rc=0",
+      "script": "runner/verify-opengame-build.sh"
+    },
+    "basedOn": "qwen-code（upstream fork）",
+    "localCache": "/Users/a123/Documents/Codex/2026-09-15/ifplay-opengame-poc/opengame@c9bea377",
+    "reporting": {
+      "telemetry": "默认关闭（enabled 缺省 false）；勿传 --telemetry，设 OTEL_SDK_DISABLED=true 与 GEMINI_TELEMETRY_ENABLED=false",
+      "usageStatistics": "默认开启（privacy.usageStatisticsEnabled 缺省 true，上报至阿里云 RUM gb4w8c3ygj-default-sea.rum.aliyuncs.com）；运行前必须设 privacy.usageStatisticsEnabled=false",
+      "approvalMode": "禁止 --yolo / ApprovalMode.YOLO 及任何跳过安全检查的参数",
+      "hardGuarantee": "构建/试玩阶段容器 --network none 断网；生成阶段 egress 白名单只放行模型端点，不放行 RUM 上报域名"
+    }
+  },
+  "budget": {
+    "perGameCny": 3.0,
+    "warnCny": 2.55,
+    "hardStopCny": 3.0,
+    "safetyMargin": 0.15,
+    "maxRepairRounds": 2,
+    "maxGames": 5,
+    "minSuccessGames": 4,
+    "imagePerGame": "1~3 张",
+    "maxImagesPerGame": 3,
+    "videoDisabled": true,
+    "cloudAudioDisabled": true,
+    "note": "阶段二起语义改为 2.55 元预警 / 3.00 元硬停（阶段一把 2.55 当硬停线执行，更保守）；调用前预估可能越过 3.00 即拒发。统一账本见 runner/budget.mjs 的 CostLedger。"
+  },
+  "metering": {
+    "maxOutputTokensPerCall": 4096,
+    "ledger": "主 Agent / reasoning / 图片 / 自动修复四类费用进同一 perGameCny 额度（CostLedger），状态落盘 generated/ledger/<game>.json 可恢复",
+    "pricingConfig": "config/providers.json（USD/1M × 显式汇率 → CNY/1k；输入/缓存输入/输出分别计价）",
+    "pricingPer1kTokensCny": {
+      "cacheHitInput": 0.0000438,
+      "cacheMissInput": 0.00219,
+      "output": 0.00876,
+      "tier": "peak（off-peak 为其一半，首轮不依赖优惠）",
+      "source": "https://api-docs.deepseek.com/quick_start/pricing（取数 2026-10-03，deepseek-flash：cache-hit $0.006 / cache-miss $0.30 / output $1.20 每 1M tokens）"
+    },
+    "fx": { "usdCny": 7.3, "status": "待产品经理确认（保守占位值，非实时牌价）", "asOf": "2026-10-03" },
+    "imageCostPerImageCny": "待定（未确认 → 图片调用被闸门拒绝，不按 0 元处理）",
+    "actualModel": "deepseek-flash 是滚动模型名；账本必须记录接口返回的实际模型标识与来源（vendor-response 首选；OpenGame CLI JSON 只能给出请求名，记为 cli-config 并列为待办）",
+    "rules": [
+      "调用前预检查：按剩余额度 + maxOutputTokens + 输入 token 估算最坏成本，可能越过 3.00 元则不发调用",
+      "单次调用必须设置最大输出 token（本 fork 未暴露 settings 侧 max_tokens，需由请求侧/补丁控制）",
+      "文本/推理/图片/自动修复费用全部计入单款 3 元",
+      "响应缺少 usage 时立即停止，不能按 0 元处理",
+      "累计达 2.55 元预警，达 3.00 元强制中止",
+      "定价或汇率未确认时该调用被拒绝"
+    ]
+  },
+  "providers": {
+    "decision": "2026-10-03 确认：主 Agent/方案/代码/自动修复=DeepSeek 官方 OpenAI 兼容接口；图片=阿里云万相（OpenGame 内置适配）；视频与云端音频关闭；首轮不做 DeepSeek vs 千问对比评测。",
+    "model": { "kind": "deepseek-official-openai-compat", "baseUrl": "https://api.deepseek.com", "model": "deepseek-flash", "authType": "openai" },
+    "image": { "kind": "tongyi-dashscope-wanxiang", "baseUrl": "https://dashscope.aliyuncs.com", "model": "wan2.5-t2i-preview" },
+    "video": [],
+    "audio": [],
+    "detail": "config/providers.json"
+  },
+  "paidGates": {
+    "envVars": ["ENABLE_PAID_API", "COST_AUTHORIZED"],
+    "default": "false",
+    "rule": "两个开关必须同时显式为 true 才允许任何真实模型调用；任一未开即拒绝且不触网（runner/credentials.mjs + runner/check-gates.mjs 实测）"
+  },
+  "deepseekIntegrationRisks": {
+    "reasoningContentAcrossTurns": "同轮工具链内 reasoning_content 会回传（converter.ts:411-421），但每个新顶层用户消息前会剥离 thought（client.ts:395 → geminiChat.ts:452-489）。DeepSeek 是否要求跨顶层轮次回传未经真实验证——真实调用前视为兼容性风险，不得声称已接通。",
+    "noImageInputToDeepSeek": "DeepSeek provider 对非 text 内容部分直接抛错（deepseek.ts:57-67）；生成过程中不得向模型发送截图/图片输入。",
+    "maxTokensNotInSettings": "settings schema 未暴露 max_tokens/samplingParams（settingsSchema.ts:631-690），单次输出上限需由请求侧控制或打补丁。",
+    "cliReportsRequestedModelOnly": "OpenGame CLI JSON 输出的 model 取自 config（BaseJsonOutputAdapter.ts:248），不是接口返回名 → 滚动模型名的真实版本无法从 CLI 取得。",
+    "imagePathHasNoUsageAndRetries": "万相路径不返回 usage 且 fetchWithRetry 对 429/5xx 最多重发 3 次（assetBaseService.ts:26-58），可能重复计费；账本必须按提交次数记账并在完成时核对张数。",
+    "imageResultDownloadHostsUndecided": "生成结果在厂商 OSS 域名上，域名未确定前图片下载会被白名单拒绝；严禁为此放开 aliyuncs.com 上级域（会连带放开 RUM）。"
+  },
+  "keys": {
+    "note": "OpenGame 不内置任何默认凭据；不配置 Key 不产生任何第三方调用。Key 一律经环境变量注入，不进仓库、不进本文件。"
+  },
+  "isolation": {
+    "mode": "container-verified",
+    "note": "最小容器隔离（Colima/Docker）已安装并验证通过（断网/只读根/单目录挂载/进程树清理/资源限额，见 reports/阶段一-容器隔离验证报告.md）。真实模型生成尚未开始。"
+  },
+  "egress": {
+    "mode": "container-live-verified",
+    "note": "egress 白名单代理已在隔离容器内实测，两轨各自的模式都跑通。strict（构建面，2026-10-03，7/7 PASS）：非白名单域 403、阿里云 RUM 域 403、白名单域错误端口 403、明文 HTTP 转发 403、直连公网 IP ENETUNREACH、绕过代理直连失败（--internal 网络层兜底）；本体构建实测唯一缺口为 GitHub Releases 资源域（已登记用途后放行）。model（模型/图片面，2026-10-03，11/11 PASS，脚本 runner/verify-model-egress.sh）：api.deepseek.com:443 与 dashscope.aliyuncs.com:443 经隧道放行，且只用无凭据 HEAD 探测，各返回 401/404，不消耗任何 token 或图片额度；api.openai.com、ark.cn-beijing.volces.com、dashscope-intl.aliyuncs.com、chat.qwen.ai、RUM 域、白名单域错误端口 :8443、明文 HTTP :80 全为 403；直连与绕过代理均被拒。代理与测试共用同一匹配器 runner/egress-rules.mjs（唯一事实来源，防配置漂移），代理日志按凭据关键词复核为零命中。图片结果下载域（厂商 OSS）仍未登记，保持默认拒绝。",
+    "config": "config/egress-allowlist.json",
+    "default": "deny"
+  },
+  "generation": {
+    "phase1Stub": true,
+    "realGenerationStarted": false,
+    "note": "阶段一不调用模型；runner 的 generate 步骤为 stub，明确输出「跳过」，不产生计费。阶段二只完成 DeepSeek 接入骨架与零费用测试（mock/本地假服务 + 无凭据域名探测），五款真实生成（首款「深夜食堂经营」）仍未开始；真实执行入口 runner/generate-game.sh 默认 dry-run，仅在双重付费闸门、Key、单价与汇率全部就绪后被调用。"
+  }
+}

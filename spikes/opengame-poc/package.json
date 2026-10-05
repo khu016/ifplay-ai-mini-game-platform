@@ -1,0 +1,17 @@
+{
+  "name": "opengame-poc",
+  "private": true,
+  "type": "module",
+  "description": "OpenGame 第二轨 PoC（阶段一零费用验证 + 阶段二 DeepSeek 接入准备）",
+  "scripts": {
+    "dry-run": "node runner/pipeline.mjs",
+    "test:deepseek": "node runner/deepseek-selftest.mjs",
+    "test:budget": "node runner/budget.mjs",
+    "test:egress-proxy": "node runner/egress-proxy-test.mjs",
+    "gates": "node runner/check-gates.mjs",
+    "gen": "bash runner/generate-game.sh --game midnight-diner"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  }
+}

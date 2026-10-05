@@ -1,0 +1,158 @@
+{
+  "generatedAt": "2026-10-03T04:10:38.780Z",
+  "phase": "阶段一（零费用空跑）",
+  "opengame": {
+    "repo": "https://github.com/leigest519/OpenGame",
+    "shaLocked": false,
+    "candidateSha": "c9bea37786af524bf3bbe802f2b67d23816fa5c0"
+  },
+  "isolation": {
+    "mode": "container-verified",
+    "note": "最小容器隔离（Colima/Docker）已安装并验证通过（断网/只读根/单目录挂载/进程树清理/资源限额，见 reports/阶段一-容器隔离验证报告.md）。真实模型生成尚未开始。"
+  },
+  "steps": [
+    {
+      "step": "generate",
+      "status": "SKIPPED",
+      "note": "阶段一无真实生成：不调模型、不计费、不读任何 Key。阶段二经确认后在容器内真实执行。"
+    },
+    {
+      "step": "build-evaluator",
+      "fixture": "fixtures/selftest（评估器自测，非 OpenGame 生成）",
+      "pass": true,
+      "detail": {
+        "stage": "build",
+        "gameDir": "/Users/a123/Documents/Codex/2026-09-15/ifplay-opengame-poc/worktree/spikes/opengame-poc/fixtures/selftest",
+        "pass": true,
+        "reasons": [],
+        "steps": [
+          {
+            "step": "npm install",
+            "exitCode": 0,
+            "logTail": "up to date in 365ms"
+          },
+          {
+            "step": "npm run build",
+            "exitCode": 0,
+            "logTail": "> build\n> node build.js\nselftest build ok → dist/index.html"
+          }
+        ],
+        "entry": "/Users/a123/Documents/Codex/2026-09-15/ifplay-opengame-poc/worktree/spikes/opengame-poc/fixtures/selftest/dist/index.html",
+        "buildExitCode": 0,
+        "buildLogSummary": "> build\n> node build.js\nselftest build ok → dist/index.html"
+      }
+    },
+    {
+      "step": "browser-evaluator",
+      "fixture": "fixtures/selftest（评估器自测，非 OpenGame 生成）",
+      "pass": true,
+      "detail": {
+        "stage": "browser",
+        "gameDir": "/Users/a123/Documents/Codex/2026-09-15/ifplay-opengame-poc/worktree/spikes/opengame-poc/fixtures/selftest",
+        "servedAt": "http://127.0.0.1:50204",
+        "viewport": "390×844",
+        "checks": {
+          "rendered": true,
+          "noFatalError": true,
+          "noExternalNetwork": true
+        },
+        "consoleErrors": [],
+        "pageErrors": [],
+        "blockedRequests": [],
+        "interaction": {
+          "clickSel": "#serve",
+          "expectSel": "#round",
+          "before": "0",
+          "after": "1",
+          "changed": true
+        },
+        "pass": true
+      }
+    },
+    {
+      "step": "metering-selftest",
+      "note": "模拟验证：预算预检查/超预算中止/usage 缺失停止/图片计费/最多 2 轮修复确定性计数。非真实调用。",
+      "detail": {
+        "overBudgetAbort": {
+          "triggered": true,
+          "error": "预检查中止：本次最坏 0.0446 元，累计将达 2.5526 元 > 有效预算 2.5500 元",
+          "perGameCny": 3,
+          "safetyMargin": 0.15,
+          "effectiveBudget": 2.55,
+          "maxOutputTokens": 4096,
+          "maxImages": 3,
+          "inputTokens": 660000,
+          "outputTokens": 198000,
+          "images": 0,
+          "spent": 2.508,
+          "aborted": true,
+          "abortReason": "预检查中止：本次最坏 0.0446 元，累计将达 2.5526 元 > 有效预算 2.5500 元"
+        },
+        "preCheckAbort": {
+          "triggered": true,
+          "error": "预检查中止：本次最坏 4.0246 元，累计将达 4.0446 元 > 有效预算 2.5500 元",
+          "perGameCny": 3,
+          "safetyMargin": 0.15,
+          "effectiveBudget": 2.55,
+          "maxOutputTokens": 4096,
+          "maxImages": 3,
+          "inputTokens": 1000,
+          "outputTokens": 3000,
+          "images": 0,
+          "spent": 0.02,
+          "aborted": true,
+          "abortReason": "预检查中止：本次最坏 4.0246 元，累计将达 4.0446 元 > 有效预算 2.5500 元"
+        },
+        "noUsage": {
+          "stopped": true,
+          "error": "响应缺少 usage，按停止处理（不能按 0 元）",
+          "perGameCny": 3,
+          "safetyMargin": 0.15,
+          "effectiveBudget": 2.55,
+          "maxOutputTokens": 4096,
+          "maxImages": 3,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "spent": 0,
+          "aborted": true,
+          "abortReason": "响应缺少 usage，按停止处理（不能按 0 元）"
+        },
+        "imageLimit": {
+          "triggered": true,
+          "error": "图片数量超上限：累计 4 > 3",
+          "perGameCny": 3,
+          "safetyMargin": 0.15,
+          "effectiveBudget": 2.55,
+          "maxOutputTokens": 4096,
+          "maxImages": 3,
+          "inputTokens": 100,
+          "outputTokens": 100,
+          "images": 3,
+          "spent": 0.3008,
+          "aborted": true,
+          "abortReason": "图片数量超上限：累计 4 > 3"
+        },
+        "repairRounds": {
+          "maxRepairs": 2,
+          "allFailSequence": [
+            "repair",
+            "repair",
+            "failed"
+          ],
+          "finalState": "failed",
+          "passAfterTwoRepairs": [
+            "repair",
+            "repair",
+            "passed"
+          ]
+        },
+        "repairPersistence": {
+          "recoveredAttempts": 2,
+          "recoveredRepairsUsed": 2,
+          "next": "failed"
+        }
+      }
+    }
+  ]
+}

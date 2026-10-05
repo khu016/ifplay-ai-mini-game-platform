@@ -1,0 +1,12 @@
+{
+  "comment": "egress 白名单。默认全拒绝；仅放行下列分组域名（含端口）。分组用途：model=DeepSeek 官方 OpenAI 兼容文本通道（主 Agent/方案/代码/自动修复），image=阿里云万相文生图（DashScope 原生异步接口），packageRegistry/buildBinaries=OpenGame 本体容器构建。严禁放开 aliyuncs.com 或 github 之类的整域/上级域：阿里云 RUM 用量上报域名 gb4w8c3ygj-default-sea.rum.aliyuncs.com 与 aliyuncs.com 同后缀，放开上级域等于把遥测出口重新打开。IP 字面量一律拒绝（allowRawIp 无效）。",
+  "default": "deny",
+  "allowRawIp": false,
+  "categories": {
+    "model": { "domains": ["api.deepseek.com:443"], "purpose": "DeepSeek 官方 OpenAI 兼容接口（阶段二文本主通道）。本轮只做零费用连通与拒绝测试，不带 Key 发起模型请求。" },
+    "image": { "domains": ["dashscope.aliyuncs.com:443"], "purpose": "阿里云万相 wan2.5-t2i-preview 文生图（提交+轮询同一域名）。生成结果的 OSS 下载域名尚未确定，未放行前图片下载会被拒（见阶段二准备报告未验证项）。" },
+    "packageRegistry": { "domains": ["registry.npmjs.org:443"], "purpose": "OpenGame 本体构建包仓库（lockfile 1296 个外部 resolved 全部指向该域名，无 git 依赖）。" },
+    "buildBinaries": { "domains": ["github.com:443", "objects.githubusercontent.com:443", "release-assets.githubusercontent.com:443"], "purpose": "sharp@0.32.6 install.js 在 lockfile 无平台预编译包时下载 libvips 预编译二进制（302 → GitHub 官方资源域），仅本体构建一次性下载。" },
+    "neverAllowlisted": { "domains": [], "purpose": "留空即拒绝。禁止加入：gb4w8c3ygj-default-sea.rum.aliyuncs.com（RUM 用量上报）、chat.qwen.ai（OAuth）、ark.cn-beijing.volces.com、dashscope-intl.aliyuncs.com、api.openai.com、update-check 等一切未登记用途域名。" }
+  }
+}

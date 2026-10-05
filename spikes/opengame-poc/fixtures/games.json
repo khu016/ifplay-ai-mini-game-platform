@@ -1,0 +1,57 @@
+{
+  "comment": "五款游戏的固定验收断言（确定性验收器依据）。阶段一仅用于定义验收器与空跑自测；阶段二才用于真实生成产物。",
+  "viewport": { "width": 390, "height": 844 },
+  "common": {
+    "render": "390×844 竖屏可渲染",
+    "interaction": "核心交互可用",
+    "noFatalError": "无致命报错",
+    "noExternalNetwork": "无未授权外网请求"
+  },
+  "games": [
+    {
+      "id": "midnight-diner",
+      "name": "深夜食堂经营",
+      "moduleIntent": "经营模拟",
+      "acceptance": [
+        "完成 >= 3 个经营回合（接待/上菜/结算）",
+        "存在可读的金钱或满意度数值变化"
+      ]
+    },
+    {
+      "id": "blacksmith-tap",
+      "name": "点击打铁",
+      "moduleIntent": "点击时机",
+      "acceptance": [
+        "连点驱动锻造进度",
+        "完成 >= 1 次锻造并结算（成功/失败态）"
+      ]
+    },
+    {
+      "id": "hotel-manage",
+      "name": "酒店经营",
+      "moduleIntent": "经营模拟",
+      "acceptance": [
+        "完成 >= 3 个经营回合（入住/退房/收益）",
+        "存在资源数值变化"
+      ]
+    },
+    {
+      "id": "rotate-runner",
+      "name": "旋转闯关",
+      "moduleIntent": "旋转交互关卡",
+      "acceptance": [
+        "通过 >= 1 关（到达过关/结算态）",
+        "旋转交互生效"
+      ]
+    },
+    {
+      "id": "random-life",
+      "name": "随机事件人生",
+      "moduleIntent": "剧情/事件选择",
+      "acceptance": [
+        "触发 >= 3 个事件选择",
+        "达成 >= 1 个结局"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "comment": "空白名单夹具：用于验证“未配置任何域名时安全失败（全拒绝）”。容器构建脚本先以此配置启动代理做失败测试，再切换到 egress-allowlist.json。",
+  "default": "deny",
+  "allowRawIp": false,
+  "categories": {
+    "model": { "domains": [] },
+    "image": { "domains": [] },
+    "packageRegistry": { "domains": [] }
+  }
+}

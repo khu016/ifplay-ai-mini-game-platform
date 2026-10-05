@@ -1,0 +1,124 @@
+{
+  "comment": "第二轨供应商接入配置骨架（阶段二准备）。本文件只允许出现环境变量【名称】，严禁出现任何真实 Key 值；Key 仅经运行时环境变量注入容器。",
+  "paidGates": {
+    "comment": "双重付费闸门：两个开关必须同时显式为 true 才允许发起任何真实模型调用；任一缺失或非 true 一律拒绝（安全失败），不静默改用其他模型。",
+    "enablePaidApi": { "envVar": "ENABLE_PAID_API", "defaultValue": "false" },
+    "costAuthorized": { "envVar": "COST_AUTHORIZED", "defaultValue": "false" }
+  },
+  "model": {
+    "provider": "deepseek-official-openai-compat",
+    "authType": "openai",
+    "baseUrl": "https://api.deepseek.com",
+    "baseUrlNote": "OpenGame 的 DeepSeek provider 按 baseUrl 含 api.deepseek.com 自动启用（packages/core/src/core/openaiContentGenerator/provider/deepseek.ts:21-27）；官方常量默认带 /v1（openaiContentGenerator/constants.ts:9），两种写法均已被 SDK 归一，实测以首次真实调用为准。",
+    "modelRequested": "deepseek-flash",
+    "modelNamingNote": "deepseek-flash 是滚动模型名，不是固定版本。每次调用必须记录接口返回的实际模型标识（响应 model 字段）到账本与报告，不得把请求名当成实际模型版本。",
+    "actualModelEvidence": "返回体 model 字段由 runner 记账时强制采集；缺失 actualModel 视为不完整记账。",
+    "apiKeyEnvVar": "OPENAI_API_KEY",
+    "baseUrlEnvVar": "OPENAI_BASE_URL",
+    "modelEnvVar": "OPENAI_MODEL",
+    "scope": "主 Agent、游戏方案、代码生成、自动修复（全部走同一 OpenAI 兼容文本通道）",
+    "nonTextContentLimit": "DeepSeek provider 对非 text 内容部分直接抛错（deepseek.ts:57-67）；生成过程中不得向模型发送截图/图片输入。",
+    "reasoningContentRisk": "同轮工具链内 reasoning_content 会回传（converter.ts:411-421），但每个新顶层用户消息前会剥离 thought（client.ts:395 → geminiChat.ts:452-489）。跨顶层轮次的推理内容是否被 DeepSeek 接受/要求，未经真实验证，列为兼容性风险。"
+  },
+  "image": {
+    "provider": "tongyi-dashscope-wanxiang",
+    "enabled": true,
+    "model": "wan2.5-t2i-preview",
+    "baseUrl": "https://dashscope.aliyuncs.com",
+    "apiKeyEnvVar": "OPENGAME_IMAGE_API_KEY",
+    "altApiKeyEnvVars": ["DASHSCOPE_API_KEY"],
+    "note": "沿用 OpenGame 内置阿里云万相路径（providerConfig.ts:101-104 即该默认值；assetImageService.ts:39-97 走异步提交+轮询）。该路径不返回任何 usage，且 fetchWithRetry 对 429/5xx 最多重发 3 次（assetBaseService.ts:26-58），可能产生重复计费：必须由我们的账本按提交次数记账并在完成时核对。",
+    "maxImagesPerGame": 3,
+    "resultDownloadHostsUndecided": "生成结果为厂商 URL，需二次下载；OSS 结果域名尚未确定，未进白名单前图片下载会被拒（见报告未验证项）。禁止为放行 OSS 而放开 aliyuncs.com 整域，否则阿里云 RUM 上报域名会一并被放行。"
+  },
+  "video": { "enabled": false, "note": "本轮及首轮关闭；OpenGame 不配视频 provider 时对应 stub 抛错（assetModelRouter.ts:241-267）。" },
+  "audio": { "enabled": false, "note": "云端音频关闭，仅允许本地渲染。" },
+  "pricing": {
+    "comment": "价格与汇率必须显式配置，禁止暗中假定。文本按 DeepSeek 官方高峰价保守预估，不依赖非高峰优惠。任一定价字段缺失或标记 pending → 该类别调用被拒绝（不按 0 元处理）。",
+    "fx": {
+      "usdCny": 7.3,
+      "status": "待产品经理确认（保守占位值，非实时汇率）",
+      "asOf": "2026-10-03",
+      "source": "占位：首次真实调用前需以当天官方/银行牌价确认并回填"
+    },
+    "text": {
+      "currency": "USD",
+      "unit": "per_1m_tokens",
+      "tier": "peak",
+      "tierNote": "官方 off-peak 价为 peak 的一半；本轮一律按 peak 预估。peak 时段：UTC 周一至周五 01:00-04:00、06:00-10:00，中国法定节假日除外。",
+      "source": { "url": "https://api-docs.deepseek.com/quick_start/pricing", "retrievedAt": "2026-10-03", "vendorConfirmationStatus": "待产品经理确认" },
+      "models": {
+        "deepseek-flash": { "cacheHitInputPer1M": 0.006, "cacheMissInputPer1M": 0.3, "outputPer1M": 1.2, "rollingName": true }
+      },
+      "defaultModel": "deepseek-flash"
+    },
+    "image": {
+      "currency": "CNY",
+      "unit": "per_image",
+      "pricePerImage": null,
+      "status": "待确认（万相 wan2.5-t2i-preview 单张价未录入 → 图片调用被闸门拒绝）",
+      "source": { "url": "https://help.aliyun.com/zh/model-studio/pricing", "retrievedAt": "未取数", "vendorConfirmationStatus": "待产品经理确认" }
+    }
+  },
+  "budget": {
+    "perGameCny": 3.0,
+    "warnCny": 2.55,
+    "hardStopCny": 3.0,
+    "maxOutputTokensPerCall": 4096,
+    "maxRepairRounds": 2,
+    "maxImagesPerGame": 3,
+    "rules": [
+      "主 Agent / reasoning / 图片 / 自动修复四类费用进同一个账本（同一 perGameCny 额度）",
+      "调用前预估已可能超过剩余额度 → 不发起调用",
+      "累计达 warnCny(2.55) 触发预警并记入账本",
+      "累计达 hardStopCny(3.0) 强制中止",
+      "响应缺少 usage → 立即停止，绝不按 0 元处理",
+      "定价或汇率未确认 → 该调用被拒绝",
+      "账本状态落盘，进程重启后可恢复"
+    ]
+  },
+  "smoke": {
+    "comment": "最小真实冒烟专用额度与定价，不是长期默认值：上面的 budget(3.0 元/款游戏) 保持不变，本段只被 runner/run-deepseek-smoke.sh 读取。发起任何真实调用都需要产品经理在该次运行前重新明确授权。",
+    "oneTimeAuthorization": true,
+    "authorizationHistory": [
+      {
+        "authorizedAt": "2026-10-04",
+        "attempts": 2,
+        "outcome": "两次均未跑通（bash 3.2 UTF-8 变量扩展 / Docker 容器名 DNS 拓扑），零条模型请求发出，授权已用满",
+        "report": "reports/阶段二-DeepSeek最小真实冒烟报告.md"
+      },
+      {
+        "authorizedAt": "2026-10-05",
+        "attempts": 1,
+        "outcome": "成功：SMOKE.txt 字节完全匹配，2 次转发均 200、0 重试；我方账本 0.012421 元（≤0.10 元硬上限，未触 0.08 预警）；DeepSeek 控制台账单待产品经理核对，账本数字不当实际账单引用",
+        "report": "reports/阶段二-DeepSeek最小真实冒烟成功报告.md"
+      }
+    ],
+    "scope": "仅一次最小冒烟（写 SMOKE.txt）。不授权生成任何游戏、不授权图片调用、不授权自动修复。",
+    "fx": {
+      "usdCny": 7.5,
+      "status": "保守熔断值（非实时汇率，仅用于把美元单价折算成人民币上限，故意取高不取低）",
+      "asOf": "2026-10-04",
+      "source": "产品经理指定 1 USD = 7.5 CNY 作为本次熔断折算值，不声称等于当日牌价"
+    },
+    "budget": {
+      "perGameCny": 0.1,
+      "warnCny": 0.08,
+      "hardStopCny": 0.1,
+      "maxOutputTokensPerCall": 512,
+      "maxRepairRounds": 0,
+      "maxImagesPerGame": 0,
+      "maxModelAttempts": 1,
+      "rules": [
+        "调用前用输入估算 + 512 输出做最坏预检，可能超过 0.10 元则不得发送",
+        "自动重试 0 次：429/5xx/网络异常一律不重发付费请求，失败即停",
+        "缺少 usage、usage 自相矛盾、缺费用配置 → 立即停止，不按 0 元处理",
+        "本次 0.10 元授权不写回默认预算，五款游戏的 3.0 元/款额度另行确认"
+      ]
+    }
+  },
+  "isolation": {
+    "hostDirectForbidden": "模型调用必须在隔离容器内、经 egress 白名单代理唯一出口发起；禁止宿主机直连 api.deepseek.com 或 dashscope 域名。",
+    "keyHandling": "Key 只在容器启动时以 -e 传入；不写文件、不进命令行参数、不进日志、不进 Git；日志写出前经 credentials.redact() 过滤。"
+  }
+}

@@ -1,0 +1,16 @@
+;; OpenGame PoC · sandbox-exec 隔离 profile（已暂停使用，仅作证据留存）
+;;
+;; 结论：本方案已暂停。allow default 不禁文件读，生成代码可读宿主敏感文件并经日志外泄。
+;; 第二轨隔离改用最小容器（Colima/Docker），见 reports/阶段一-容器隔离方案.md。
+;;
+;; 本 profile 的探针证据见 reports/阶段一-隔离探针报告.md（修正版）：
+;;   - 网络：仅验证 DNS/HTTPS 失败，未验证直连 IP TCP。
+;;   - 文件写：白名单内可写、白名单外 EPERM。
+;;   - 子进程：严格白名单会让 Node/V8 崩溃。
+;;   - 超时：仅验证单个直接子进程，未验证完整子进程树。
+(version 1)
+(allow default)
+(deny network*)
+(deny file-write*)
+(allow file-write* (subpath "/Users/a123/Documents/Codex/2026-09-15/ifplay-opengame-poc/worktree/spikes/opengame-poc/generated"))
+(allow file-write* (subpath "/private/tmp/opengame-poc"))

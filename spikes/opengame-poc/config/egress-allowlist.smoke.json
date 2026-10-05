@@ -1,0 +1,9 @@
+{
+  "comment": "最小真实冒烟专用 egress 白名单：只放行 DeepSeek 文本通道 443。图片域名 dashscope.aliyuncs.com 本次未授权，故不写入任何分组（网络层直接拒）。RUM/其他模型域/明文 HTTP/直连 IP 一律拒绝；allowRawIp 保持 false。",
+  "default": "deny",
+  "allowRawIp": false,
+  "categories": {
+    "model": { "domains": ["api.deepseek.com:443"], "purpose": "本次冒烟唯一放行的出口：DeepSeek 官方 OpenAI 兼容文本接口。" },
+    "neverAllowlisted": { "domains": [], "purpose": "留空即拒绝。禁止加入：dashscope.aliyuncs.com（图片未授权）、gb4w8c3ygj-default-sea.rum.aliyuncs.com（RUM 上报）、api.openai.com、ark.cn-beijing.volces.com、dashscope-intl.aliyuncs.com、chat.qwen.ai、registry.npmjs.org。" }
+  }
+}

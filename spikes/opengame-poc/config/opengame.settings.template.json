@@ -1,0 +1,31 @@
+{
+  "$comment": "OpenGame settings.json 模板（阶段二 DeepSeek 接入骨架）。放置位置：容器内工作目录的 .qwen/settings.json，或 --settings 指定。本文件严禁写入真实 Key：Key 只经运行时环境变量注入（OPENAI_API_KEY / OPENGAME_IMAGE_API_KEY）。字段名与 settingsSchema 一一对应。",
+  "$schemaNote": "security.auth.selectedType / baseUrl、model.name、privacy.usageStatisticsEnabled、advanced.excludedEnvVars、openGame.providers.image.* 均见 packages/cli/src/config/settingsSchema.ts（1068-1113 / 527-540 / 505 / 1146 / 1197-1253）",
+  "security": {
+    "auth": {
+      "selectedType": "openai",
+      "baseUrl": "https://api.deepseek.com/v1"
+    }
+  },
+  "model": {
+    "name": "deepseek-flash",
+    "$comment": "maxOutputTokens 未在本 fork 的 settings schema 暴露（settingsSchema.ts:631-690 只有 timeout/maxRetries/schemaCompliance），单次输出上限必须由请求侧或补丁控制，见阶段二准备报告的待办项。"
+  },
+  "privacy": {
+    "usageStatisticsEnabled": false
+  },
+  "advanced": {
+    "excludedEnvVars": ["OPENAI_API_KEY", "OPENGAME_IMAGE_API_KEY", "DASHSCOPE_API_KEY"],
+    "$comment": "项目 .env 会加载除 excludedEnvVars 外的变量（settings.ts:569-592，默认只排除 DEBUG/DEBUG_MODE）。把 Key 名加入此列表，可防止误把密钥写进项目 .env 被静默读取——密钥只认容器启动时显式注入的环境变量。"
+  },
+  "openGame": {
+    "providers": {
+      "image": {
+        "provider": "tongyi",
+        "baseUrl": "https://dashscope.aliyuncs.com",
+        "model": "wan2.5-t2i-preview"
+      },
+      "$comment": "video / audio 不配置即不可用（对应 stub 抛错，assetModelRouter.ts:241-267），本轮保持关闭。DeepSeek 不承担文生图。"
+    }
+  }
+}

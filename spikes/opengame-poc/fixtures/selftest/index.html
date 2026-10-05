@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>评估器自测：深夜食堂（固定夹具）</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, sans-serif; background: #1b1b2f; color: #eee; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .card { width: 100%; max-width: 390px; padding: 24px; text-align: center; }
+  h1 { font-size: 20px; margin-bottom: 8px; }
+  .stats { display: flex; gap: 12px; justify-content: center; margin: 16px 0; }
+  .stat { background: #2a2a44; border-radius: 10px; padding: 12px 16px; }
+  .stat .label { font-size: 12px; color: #9aa; }
+  .stat .value { font-size: 22px; font-weight: 700; }
+  button { width: 100%; padding: 16px; font-size: 18px; border: 0; border-radius: 12px; background: #e07a5f; color: #fff; cursor: pointer; }
+  button:active { transform: scale(0.98); }
+  .round { margin-top: 12px; font-size: 14px; color: #9aa; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>深夜食堂（评估器自测夹具）</h1>
+  <div class="stats">
+    <div class="stat"><div class="label">回合</div><div class="value" id="round">0</div></div>
+    <div class="stat"><div class="label">金钱</div><div class="value" id="money">0</div></div>
+    <div class="stat"><div class="label">满意度</div><div class="value" id="sat">0</div></div>
+  </div>
+  <button id="serve">接待顾客并上菜</button>
+  <div class="round" id="hint">点击按钮完成一个经营回合</div>
+</div>
+<script>
+  let round = 0, money = 0, sat = 0;
+  const $ = (id) => document.getElementById(id);
+  $('serve').addEventListener('click', () => {
+    round += 1; money += 10; sat += 1;
+    $('round').textContent = round;
+    $('money').textContent = money;
+    $('sat').textContent = sat;
+    $('hint').textContent = '已完成 ' + round + ' 个经营回合';
+  });
+</script>
+</body>
+</html>
